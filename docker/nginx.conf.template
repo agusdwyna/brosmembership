@@ -1,0 +1,73 @@
+# Rendered at container start by docker-entrypoint.sh (only ${PORT} and
+# ${API_PORT} are substituted). Serves the built SPA and reverse-proxies the API
+# + uploads to the Express process running in the same container.
+#
+#   ${PORT}     — public port nginx listens on (default 80)
+#   ${API_PORT} — internal port the Express API binds (default 3002)
+
+server {
+    listen ${PORT} default_server;
+    listen [::]:${PORT} default_server;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Multer caps uploads at 5MB; leave a little headroom for multipart overhead.
+    client_max_body_size 6m;
+
+    # Coolify's proxy terminates TLS in front of us and forwards the real scheme.
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_types text/plain text/css application/json application/javascript application/xml image/svg+xml;
+
+    # ── API ────────────────────────────────────────────────────────────
+    # proxy_pass has no URI part, so the original /api/... path is preserved
+    # and Express mounts it under API_PREFIX.
+    location /api/ {
+        proxy_pass http://127.0.0.1:${API_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_read_timeout 60s;
+    }
+
+    # ── Uploaded member/card images ────────────────────────────────────
+    location /uploads/ {
+        proxy_pass http://127.0.0.1:${API_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        expires 1h;
+        add_header Cache-Control "public";
+    }
+
+    # ── Liveness probe (kept quiet) ────────────────────────────────────
+    location = /health {
+        access_log off;
+        proxy_pass http://127.0.0.1:${API_PORT};
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── Static assets (content-hashed → safe to cache forever) ─────────
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # ── SPA fallback for React Router deep links ───────────────────────
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

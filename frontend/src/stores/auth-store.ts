@@ -1,0 +1,60 @@
+import { create } from 'zustand';
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
+
+interface AuthState {
+  user: User | null;
+  accessToken: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (user: User, accessToken: string) => void;
+  setUser: (user: User) => void;
+  logout: () => void;
+  loadFromStorage: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  accessToken: null,
+  isAuthenticated: false,
+  isLoading: true,
+
+  login: (user, accessToken) => {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user, accessToken, isAuthenticated: true, isLoading: false });
+  },
+
+  setUser: (user) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user });
+  },
+
+  logout: () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    set({ user: null, accessToken: null, isAuthenticated: false, isLoading: false });
+  },
+
+  loadFromStorage: () => {
+    const token = localStorage.getItem('accessToken');
+    const userStr = localStorage.getItem('user');
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        set({ user, accessToken: token, isAuthenticated: true, isLoading: false });
+      } catch {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('user');
+        set({ isLoading: false });
+      }
+    } else {
+      set({ isLoading: false });
+    }
+  },
+}));

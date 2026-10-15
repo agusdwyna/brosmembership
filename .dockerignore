@@ -1,0 +1,36 @@
+# Keep the build context small and — critically — keep secrets and local state
+# out of the image.
+node_modules
+**/node_modules
+
+# Never ship local env files; Coolify injects env at runtime.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+
+# Build artifacts (rebuilt inside the image)
+dist
+**/dist
+**/tsconfig.tsbuildinfo
+coverage
+**/coverage
+
+# User-uploaded images are runtime data, supplied via the /app/uploads volume.
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Repo/tooling noise
+.git
+.gitignore
+.husky
+.claude
+.vscode
+.github
+**/*.log
+docs
+DESIGN.md
+CLAUDE.md
+# Large local-only export, not needed in the image
+frontend/cards-export-*.pdf

@@ -1,0 +1,67 @@
+# Single-service stack for Coolify (Docker Compose build pack).
+#
+# Every value below is injected at deploy time from Coolify's Environment
+# Variables tab — nothing here is a secret. `:?` makes a missing required var
+# fail the deploy loudly instead of booting with an unsafe default.
+#
+# Prefer the plain Dockerfile build pack? Everything still works; Coolify injects
+# the same variables directly and you only need to add the persistent volume.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bros-membership:latest
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: production
+      # Public port nginx listens on — Coolify's proxy maps the domain here.
+      PORT: "80"
+      # Internal-only port the Express API binds. Must differ from PORT.
+      API_PORT: "3002"
+      API_PREFIX: /api
+
+      # ── Required (fail fast if absent) ────────────────────────────────
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL wajib diisi}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib diisi}
+
+      # ── Optional with sensible defaults ───────────────────────────────
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      # Same-origin single service: leave empty unless you add other origins.
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Real client IP arrives via Coolify's proxy → trust one hop for rate limiting.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+
+      # ── First-time seed (idempotent) ──────────────────────────────────
+      RUN_SEED: ${RUN_SEED:-false}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_OFFICER_EMAIL: ${SEED_OFFICER_EMAIL:-}
+      SEED_OFFICER_PASSWORD: ${SEED_OFFICER_PASSWORD:-}
+
+    # Not published to the host: Coolify's proxy reaches it over the internal
+    # network. Change to `ports: ["8080:80"]` only for a plain `docker compose up`.
+    expose:
+      - "80"
+
+    volumes:
+      # Uploaded images must survive redeploys (written by src/config/uploads.ts).
+      - uploads:/app/backend/uploads
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:80/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+volumes:
+  uploads:

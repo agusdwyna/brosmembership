@@ -1,0 +1,170 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { cardTemplatesApi } from './api';
+import type { CardTemplate } from './types';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { StatusBadge } from '@/components/ui/Badge';
+import { DataTable } from '@/components/shared/DataTable';
+import { TableToolbar, SearchInput } from '@/components/shared/TableToolbar';
+import { RowActions } from '@/components/shared/RowActions';
+import { ListCapNotice } from '@/components/shared/ListCapNotice';
+import type { ListMeta } from '@/lib/list';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { toast } from '@/components/ui/toast-store';
+import { Plus } from 'lucide-react';
+import { format } from 'date-fns';
+
+export function CardTemplatesPage() {
+  const navigate = useNavigate();
+  const [templates, setTemplates] = useState<CardTemplate[]>([]);
+  const [meta, setMeta] = useState<ListMeta>();
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [toggleTarget, setToggleTarget] = useState<CardTemplate | null>(null);
+  const [toggleLoading, setToggleLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data } = await cardTemplatesApi.list();
+      setTemplates(data.data);
+      setMeta(data.meta);
+    } catch {
+      toast.error('Gagal memuat template kartu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleToggleStatus = async () => {
+    if (!toggleTarget) return;
+    setToggleLoading(true);
+    try {
+      if (toggleTarget.status === 'ACTIVE') {
+        await cardTemplatesApi.deactivate(toggleTarget.id);
+        toast.success('Card template deactivated');
+      } else {
+        await cardTemplatesApi.activate(toggleTarget.id);
+        toast.success('Card template activated');
+      }
+      await load();
+    } catch {
+      toast.error('Failed to update status');
+    } finally {
+      setToggleLoading(false);
+      setToggleTarget(null);
+    }
+  };
+
+  const filteredTemplates = search
+    ? templates.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
+    : templates;
+
+  const columns = [
+    {
+      key: 'name',
+      header: 'Name',
+      render: (t: CardTemplate) => <span className="font-medium">{t.name}</span>,
+    },
+    {
+      key: 'sides',
+      header: 'Sides',
+      render: (t: CardTemplate) => (
+        <span className="text-secondary">
+          {t.sides.length} sides, {t.sides.reduce((a, s) => a + s.elements.length, 0)} elements
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (t: CardTemplate) => <StatusBadge status={t.status} />,
+    },
+    {
+      key: 'created',
+      header: 'Created',
+      render: (t: CardTemplate) => (
+        <span className="text-secondary">{format(new Date(t.createdAt), 'dd MMM yyyy')}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: 'w-[1%]',
+      render: (t: CardTemplate) => (
+        <RowActions
+          actions={[
+            {
+              key: 'edit',
+              label: 'Edit template',
+              variant: 'brand',
+              onClick: () => navigate(`/card-templates/${t.id}/edit`),
+            },
+            {
+              key: 'toggle',
+              label: t.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan',
+              variant: t.status === 'ACTIVE' ? 'danger' : 'default',
+              onClick: () => setToggleTarget(t),
+            },
+          ]}
+        />
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader
+        title="Card Templates"
+        description="Manage card template designs"
+        action={
+          <Button onClick={() => navigate('/card-templates/new/edit')}>
+            <Plus className="w-4 h-4" /> Add Template
+          </Button>
+        }
+      />
+      <Card>
+        <TableToolbar>
+          <SearchInput value={search} onChange={setSearch} placeholder="Search templates..." />
+        </TableToolbar>
+        <ListCapNotice meta={meta} />
+        <DataTable
+          columns={columns}
+          data={filteredTemplates}
+          loading={loading}
+          emptyTitle="No templates yet"
+          emptyDescription="Create your first card template"
+          emptyAction={
+            <Button onClick={() => navigate('/card-templates/new/edit')}>
+              <Plus className="w-4 h-4" /> Add Template
+            </Button>
+          }
+          getRowId={(t) => t.id}
+        />
+      </Card>
+
+      <ConfirmDialog
+        open={!!toggleTarget}
+        onClose={() => setToggleTarget(null)}
+        onConfirm={handleToggleStatus}
+        title={
+          toggleTarget?.status === 'ACTIVE' ? 'Deactivate Card Template' : 'Activate Card Template'
+        }
+        description={
+          toggleTarget?.status === 'ACTIVE'
+            ? `${toggleTarget.name} akan ditandai tidak aktif dan tidak dapat dipilih untuk membership baru.`
+            : `${toggleTarget?.name ?? 'Template'} akan diaktifkan kembali dan dapat digunakan lagi.`
+        }
+        confirmLabel={toggleTarget?.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+        variant={toggleTarget?.status === 'ACTIVE' ? 'danger' : 'primary'}
+        loading={toggleLoading}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,15 @@
+node_modules
+dist
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+coverage
+uploads/*
+!uploads/.gitkeep
+*.local
+
+# Generated card exports may contain member data — never commit them
+frontend/cards-export-*.pdf

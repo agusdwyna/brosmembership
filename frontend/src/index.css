@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+@import "tailwindcss";
+
+
+@theme {
+  /* ─── Brand (Bali Royal Hospital maroon) ────── */
+  --color-brand: #B82230;
+  --color-brand-dark: #8E1A25;
+  --color-gold: #C9A34E;
+
+  /* ─── Neutral ───────────────────────────────── */
+  --color-bg: #F8F9FB;
+  --color-surface: #FFFFFF;
+  --color-border: #EDF1F2;
+  --color-border-strong: #D9DFE2;
+  --color-foreground: #3A3F52;
+  --color-secondary: #53627C;
+  --color-muted: #8DA2B5;
+
+  /* ─── Semantic ──────────────────────────────── */
+  --color-success: #2F7D5A;
+  --color-warning: #B7791F;
+  --color-danger: #B82230;
+  --color-info: #4C718C;
+
+  /* ─── Font ──────────────────────────────────── */
+  --font-sans: "Roboto", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+h2 {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+  margin: 0;
+}
+
+h3 {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}

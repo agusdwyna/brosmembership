@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth ───────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("OFFICER") // ADMIN | OFFICER
+  status       String   @default("ACTIVE")  // ACTIVE | INACTIVE
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  scanHistory   ScanHistory[]
+  activityLogs  ActivityLog[]
+  @@map("users")
+}
+
+// ─── Companies ──────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  status    String   @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members Member[]
+
+  @@map("companies")
+}
+
+// ─── Members ────────────────────────────────────────────
+
+model Member {
+  id           String   @id @default(cuid())
+  memberNumber String   @unique
+  nik          String?  @unique
+  qrHash       String?  @unique
+  fullName     String
+  phone        String?
+  email        String?
+  photo        String?
+  address      String?
+  dateOfBirth  DateTime?
+  companyId    String?
+  status       String   @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company      Company?       @relation(fields: [companyId], references: [id])
+  memberships  Membership[]
+  scanHistory  ScanHistory[]
+  activityLogs ActivityLog[]
+
+  @@map("members")
+}
+
+// ─── Membership Types ───────────────────────────────────
+
+model MembershipType {
+  id                  String   @id @default(cuid())
+  code                String   @unique
+  name                String
+  description         String?
+  duration            Int      // dalam hari
+  status                  String   @default("ACTIVE") // ACTIVE | INACTIVE
+  defaultCardTemplateId   String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  defaultCardTemplate CardTemplate? @relation(fields: [defaultCardTemplateId], references: [id])
+  memberships Membership[]
+
+  @@map("membership_types")
+}
+
+// ─── Memberships ────────────────────────────────────────
+
+model Membership {
+  id               String   @id @default(cuid())
+  memberId         String
+  membershipTypeId String
+  startDate        DateTime
+  endDate          DateTime
+  status           String   @default("ACTIVE") // ACTIVE | SUSPENDED | EXPIRED | CANCELLED
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  member         Member          @relation(fields: [memberId], references: [id])
+  membershipType MembershipType  @relation(fields: [membershipTypeId], references: [id])
+  cards          MembershipCard[]
+  scanHistory    ScanHistory[]
+
+  @@map("memberships")
+}
+
+// ─── Card Templates ─────────────────────────────────────
+
+model CardTemplate {
+  id           String   @id @default(cuid())
+  name         String
+  status       String   @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sides                    CardTemplateSide[]
+  defaultForMembershipType MembershipType[]
+  cards                    MembershipCard[]
+
+  @@map("card_templates")
+}
+
+model CardTemplateSide {
+  id             String @id @default(cuid())
+  cardTemplateId String
+  side           String // FRONT | BACK
+  designUrl      String?
+
+  elements CardTemplateElement[]
+
+  cardTemplate CardTemplate @relation(fields: [cardTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([cardTemplateId, side])
+  @@map("card_template_sides")
+}
+
+model CardTemplateElement {
+  id                 String @id @default(cuid())
+  cardTemplateSideId String
+  type               String // MEMBER_NAME | MEMBER_NUMBER | MEMBERSHIP_NAME | EXPIRY_DATE | QR_CODE
+  x                  Float
+  y                  Float
+  width              Float
+  height             Float
+  fontSize           Float?
+  fontWeight         String? // normal | bold
+  alignment          String? // left | center | right
+
+  side CardTemplateSide @relation(fields: [cardTemplateSideId], references: [id], onDelete: Cascade)
+
+  @@map("card_template_elements")
+}
+
+// ─── Membership Cards ───────────────────────────────────
+
+model MembershipCard {
+  id              String    @id @default(cuid())
+  membershipId    String
+  cardNumber      String    @unique
+  cardTemplateId  String
+  templateVersion Int       @default(1)
+  issuedAt        DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+
+  membership   Membership   @relation(fields: [membershipId], references: [id])
+  cardTemplate CardTemplate @relation(fields: [cardTemplateId], references: [id])
+
+  @@map("membership_cards")
+}
+
+// ─── Scan History ───────────────────────────────────────
+
+// ─── Settings ──────────────────────────────────────────
+
+// Application-level settings stored as a key-value map. Values are strings;
+// numeric/bool settings are parsed by the settings service on read.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ─── Activity Log ─────────────────────────────────────
+
+model ActivityLog {
+  id           String   @id @default(cuid())
+  // Optional: member-scoped actions (assign/renew/...) set it; user- and
+  // settings-level actions (create user, update settings, ...) do not.
+  memberId     String?
+  action       String   // ASSIGN | CHANGE_TYPE | RENEW | SUSPEND | CANCEL | CREATE_USER | ...
+  description  String
+  oldValue     String?
+  newValue     String?
+  performedBy  String
+  createdAt    DateTime @default(now())
+
+  member   Member? @relation(fields: [memberId], references: [id])
+  officer  User    @relation(fields: [performedBy], references: [id])
+
+  @@map("activity_logs")
+}
+
+model ScanHistory {
+  id           String   @id @default(cuid())
+  memberId     String?
+  membershipId String?
+  result       String   // VALID | EXPIRED | SUSPENDED | CANCELLED | NOT_FOUND
+  reason       String?
+  scannerMethod String  // MANUAL | PHYSICAL_READER | CAMERA
+  officerId    String
+  createdAt    DateTime @default(now())
+
+  member     Member?        @relation(fields: [memberId], references: [id])
+  membership Membership?    @relation(fields: [membershipId], references: [id])
+  officer    User           @relation(fields: [officerId], references: [id])
+
+  @@map("scan_history")
+}
