@@ -32,8 +32,9 @@ services:
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       # Same-origin single service: leave empty unless you add other origins.
       CORS_ORIGINS: ${CORS_ORIGINS:-}
-      # Real client IP arrives via Coolify's proxy → trust one hop for rate limiting.
-      TRUST_PROXY: ${TRUST_PROXY:-1}
+      # Two proxies sit in front of Express: Coolify's proxy → nginx. Trust both
+      # hops so rate limiting sees the real client IP instead of the proxy IP.
+      TRUST_PROXY: ${TRUST_PROXY:-2}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
 
       # ── First-time seed (idempotent) ──────────────────────────────────
@@ -60,7 +61,7 @@ services:
         - "require('http').get('http://127.0.0.1:80/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
       interval: 30s
       timeout: 5s
-      start_period: 45s
+      start_period: 90s
       retries: 3
 
 volumes:

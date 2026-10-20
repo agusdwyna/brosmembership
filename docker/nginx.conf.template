@@ -6,12 +6,17 @@
 #   ${API_PORT} — internal port the Express API binds (default 3002)
 
 server {
+    # IPv4 only: Docker hosts with IPv6 disabled make `listen [::]` fail at
+    # startup, and Coolify's proxy connects over the container network anyway.
     listen ${PORT} default_server;
-    listen [::]:${PORT} default_server;
     server_name _;
 
     root /usr/share/nginx/html;
     index index.html;
+
+    # Keep nginx logs in the container output so Coolify's Logs tab shows them.
+    access_log /dev/stdout;
+    error_log /dev/stderr warn;
 
     # Multer caps uploads at 5MB; leave a little headroom for multipart overhead.
     client_max_body_size 6m;

@@ -17,9 +17,20 @@ envsubst '${PORT} ${API_PORT}' \
 nginx -t
 
 # ─── Database migrations ──────────────────────────────────────────────────
+# A fresh Coolify deploy can start this container before PostgreSQL accepts
+# connections, so retry for ~45s instead of failing the whole deploy.
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   echo "▶ Menerapkan migrasi database (prisma migrate deploy)…"
-  (cd /app/backend && node /app/node_modules/prisma/build/index.js migrate deploy)
+  attempt=0
+  until (cd /app/backend && node /opt/tools/node_modules/prisma/build/index.js migrate deploy); do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 15 ]; then
+      echo "✗ Migrasi gagal setelah $attempt percobaan — periksa DATABASE_URL dan status database." >&2
+      exit 1
+    fi
+    echo "… database belum siap (percobaan ${attempt}/15), coba lagi dalam 3 detik."
+    sleep 3
+  done
 else
   echo "▶ RUN_MIGRATIONS=false — melewati migrasi."
 fi
@@ -28,19 +39,25 @@ fi
 # Idempotent (uses upserts). Enable with RUN_SEED=true and set SEED_* passwords.
 if [ "${RUN_SEED:-false}" = "true" ]; then
   echo "▶ Seeding database…"
-  (cd /app/backend && node /app/node_modules/tsx/dist/cli.mjs prisma/seed.ts)
+  (cd /app/backend && node /opt/tools/node_modules/tsx/dist/cli.mjs prisma/seed.ts)
 fi
 
 # ─── Run API + nginx ──────────────────────────────────────────────────────
-# nginx runs in the background; the API stays in the foreground so the container
-# lifecycle (and logging) tracks the Node process.
+# Both run as children of this script. Keep the API in the background so the
+# shell can trap Coolify's SIGTERM and stop both processes cleanly; `wait` then
+# exits the container if the API dies so the platform restarts it.
 echo "▶ Menjalankan nginx…"
 nginx -g 'daemon off;' &
 NGINX_PID=$!
 
-# Forward termination signals so Coolify can stop the container cleanly.
-trap 'kill -TERM "$NGINX_PID" 2>/dev/null || true' TERM INT
-
 echo "▶ Menjalankan API (node dist/index.js)…"
 cd /app/backend
-node dist/index.js
+node dist/index.js &
+API_PID=$!
+
+cleanup() {
+  kill -TERM "$NGINX_PID" "$API_PID" 2>/dev/null || true
+}
+trap cleanup TERM INT EXIT
+
+wait "$API_PID"

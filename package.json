@@ -18,7 +18,7 @@
     "format": "npm run format --workspaces --if-present",
     "format:check": "npm run format:check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "prepare": "husky"
+    "prepare": "husky || exit 0"
   },
   "dependencies": {
     "konva": "^10.3.1",

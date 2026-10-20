@@ -26,6 +26,8 @@ backend/uploads/*
 .gitignore
 .husky
 .claude
+.commandcode
+backend/.commandcode
 .vscode
 .github
 **/*.log
