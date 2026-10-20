@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { AlertCircle, KeyRound } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { authApi } from '@/features/auth/api';
 import { useFormErrors } from '@/lib/use-form-error';
 import { getErrorMessage } from '@/lib/error';
@@ -20,7 +20,62 @@ const changePasswordSchema = z
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: 'Konfirmasi password tidak cocok',
     path: ['confirmPassword'],
+  })
+  .refine((data) => data.newPassword !== data.currentPassword, {
+    message: 'Password baru harus berbeda dari password lama',
+    path: ['newPassword'],
   });
+
+interface PasswordFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  helper?: string;
+  disabled?: boolean;
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  error,
+  helper,
+  disabled,
+}: PasswordFieldProps) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <label htmlFor={id} className="text-[13px] font-medium text-foreground">
+          {label}
+        </label>
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          className="flex items-center gap-1 text-[12px] text-muted hover:text-foreground transition-colors"
+          aria-label={visible ? 'Sembunyikan password' : 'Tampilkan password'}
+        >
+          {visible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          {visible ? 'Sembunyikan' : 'Tampilkan'}
+        </button>
+      </div>
+      <Input
+        id={id}
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        error={error}
+        helper={helper}
+        disabled={disabled}
+        autoComplete={id === 'currentPassword' ? 'current-password' : 'new-password'}
+        required
+      />
+    </div>
+  );
+}
 
 export function ChangePasswordPage() {
   const navigate = useNavigate();
@@ -71,34 +126,31 @@ export function ChangePasswordPage() {
             <h3 className="text-[15px] font-semibold">Password</h3>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input
+            <PasswordField
+              id="currentPassword"
               label="Password Lama"
-              type="password"
               value={form.currentPassword}
-              onChange={(e) => handleChange('currentPassword', e.target.value)}
+              onChange={(value) => handleChange('currentPassword', value)}
               error={fieldErrors.currentPassword}
               disabled={saving}
-              required
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-              <Input
+              <PasswordField
+                id="newPassword"
                 label="Password Baru"
-                type="password"
                 value={form.newPassword}
-                onChange={(e) => handleChange('newPassword', e.target.value)}
+                onChange={(value) => handleChange('newPassword', value)}
                 error={fieldErrors.newPassword}
                 helper="Minimal 6 karakter."
                 disabled={saving}
-                required
               />
-              <Input
+              <PasswordField
+                id="confirmPassword"
                 label="Konfirmasi Password Baru"
-                type="password"
                 value={form.confirmPassword}
-                onChange={(e) => handleChange('confirmPassword', e.target.value)}
+                onChange={(value) => handleChange('confirmPassword', value)}
                 error={fieldErrors.confirmPassword}
                 disabled={saving}
-                required
               />
             </div>
 

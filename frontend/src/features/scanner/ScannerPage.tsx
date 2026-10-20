@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { ScannerCardPreview } from './components/ScannerCardPreview';
 import { visitsApi } from '@/features/visits/api';
 import { toast } from '@/components/ui/toast-store';
-import { CheckCircle2, XCircle, Keyboard, Usb, Camera, Loader2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CalendarCheck, CheckCircle2, XCircle, Keyboard, Usb, Camera, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useAuthStore } from '@/stores/auth-store';
@@ -97,6 +98,7 @@ export function ScannerPage() {
   );
   const [visitSaving, setVisitSaving] = useState(false);
   const [visitRecorded, setVisitRecorded] = useState(false);
+  const [confirmVisitOpen, setConfirmVisitOpen] = useState(false);
   const canRecordVisit = useAuthStore((s) => (s.user?.permissions ?? []).includes('visit.create'));
   const inputRef = useRef<HTMLInputElement>(null);
   const readerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -137,6 +139,7 @@ export function ScannerPage() {
       setState('processing');
       setResult(null);
       setVisitRecorded(false);
+      setConfirmVisitOpen(false);
 
       try {
         const { data } = await scannerApi.verify(t, m);
@@ -184,6 +187,7 @@ export function ScannerPage() {
     setResult(null);
     setToken('');
     setVisitRecorded(false);
+    setConfirmVisitOpen(false);
     if (method === 'CAMERA') {
       setCameraActive(true);
       setState('scanning');
@@ -204,6 +208,7 @@ export function ScannerPage() {
         scanId: result.scanId ?? null,
       });
       setVisitRecorded(true);
+      setConfirmVisitOpen(false);
       toast.success('Kunjungan tercatat');
     } catch {
       toast.error('Gagal mencatat kunjungan');
@@ -308,18 +313,24 @@ export function ScannerPage() {
 
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <Button onClick={handleScanAnother} variant="secondary">
-                    Scan Another
+                    Scan Lagi
                   </Button>
                   {result.result === 'VALID' && result.member && canRecordVisit && (
                     <Button
-                      onClick={handleRecordVisit}
+                      onClick={() => setConfirmVisitOpen(true)}
                       loading={visitSaving}
                       disabled={visitRecorded}
                     >
-                      {visitRecorded ? 'Kunjungan tercatat' : 'Daftarkan Kunjungan'}
+                      <CalendarCheck className="w-4 h-4" />
+                      {visitRecorded ? 'Kunjungan Tercatat' : 'Konfirmasi Kunjungan'}
                     </Button>
                   )}
                 </div>
+                {visitRecorded && (
+                  <p className="flex items-center gap-1.5 text-[13px] text-success mt-3">
+                    <CheckCircle2 className="w-4 h-4" /> Kunjungan berhasil dicatat.
+                  </p>
+                )}
               </div>
 
               {/* Card Preview */}
@@ -338,11 +349,19 @@ export function ScannerPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ConfirmDialog
+          open={confirmVisitOpen}
+          onClose={() => setConfirmVisitOpen(false)}
+          onConfirm={handleRecordVisit}
+          title="Konfirmasi Kunjungan"
+          description={`Daftarkan kunjungan untuk ${result.member?.fullName ?? 'member ini'} (${result.member?.memberNumber ?? '-'})? Tindakan ini mencatat bahwa member melanjutkan registrasi di SIMRS.`}
+          confirmLabel="Ya, Daftarkan"
+          loading={visitSaving}
+        />
       </div>
     );
   }
-
-  // ─── STATE: PROCESSING ────────────────────────────────
   if (state === 'processing') {
     return (
       <div className="max-w-2xl mx-auto">

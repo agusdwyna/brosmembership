@@ -64,8 +64,8 @@ export const DEFAULT_ROLES: RoleSeed[] = [
   {
     key: 'OFFICER',
     label: 'Petugas',
-    description: 'Hanya untuk memindai dan memvalidasi member.',
-    permissions: ['scan.perform'],
+    description: 'Memindai kartu dan mencatat kunjungan member.',
+    permissions: ['scan.perform', 'visit.create', 'visit.view'],
     isSystem: true,
   },
 ];

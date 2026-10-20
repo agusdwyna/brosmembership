@@ -30,6 +30,13 @@ export function Header() {
     navigate(path);
   };
 
+  const initials = (user?.name ?? '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+
   return (
     <header className="h-14 bg-surface border-b border-border flex items-center justify-between px-4 sm:px-6">
       <div className="flex items-center gap-2 min-w-0">
@@ -49,9 +56,12 @@ export function Header() {
           onClick={() => setMenuOpen((v) => !v)}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          className="flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-[4px] hover:bg-bg transition-colors"
+          className="flex items-center gap-2 pl-1 pr-1.5 py-1 rounded-[4px] hover:bg-bg transition-colors"
         >
-          <div className="text-right">
+          <div className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-[11px] font-semibold shrink-0">
+            {initials || <UserRound className="w-4 h-4" />}
+          </div>
+          <div className="hidden sm:block text-left">
             <div className="text-[13px] font-medium text-foreground leading-tight">
               {user?.name}
             </div>
@@ -66,14 +76,18 @@ export function Header() {
         {menuOpen && (
           <div
             role="menu"
-            className="absolute right-0 mt-1 w-48 bg-surface border border-border rounded-[4px] shadow-sm py-1 z-50"
+            className="absolute right-0 mt-1 w-56 bg-surface border border-border rounded-[4px] shadow-sm py-1 z-50"
           >
+            <div className="px-3 py-2 border-b border-border">
+              <div className="text-[13px] font-medium text-foreground truncate">{user?.name}</div>
+              <div className="text-[11px] text-muted truncate">{user?.email}</div>
+            </div>
             <button
               role="menuitem"
               onClick={() => go('/profile')}
               className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-foreground hover:bg-bg transition-colors"
             >
-              <UserRound className="w-4 h-4 text-muted" /> Profil
+              <UserRound className="w-4 h-4 text-muted" /> Profil Saya
             </button>
             <button
               role="menuitem"

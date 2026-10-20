@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
+import { authApi } from '@/features/auth/api';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Toaster } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
@@ -76,10 +77,22 @@ function guard(permission: string, element: React.ReactNode) {
 
 export function App() {
   const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
+  const setUser = useAuthStore((s) => s.setUser);
 
   useEffect(() => {
     loadFromStorage();
-  }, [loadFromStorage]);
+
+    // Credentials stored before roles became permission-based have no
+    // `permissions` array, which would hide permission-gated actions. Refresh
+    // the profile (and therefore the permissions) from the API on every start.
+    if (!localStorage.getItem('accessToken')) return;
+    authApi
+      .me()
+      .then(({ data }) => setUser(data.data))
+      .catch(() => {
+        // 401 is handled by the axios interceptor (redirect to login).
+      });
+  }, [loadFromStorage, setUser]);
 
   return (
     <ErrorBoundary>
