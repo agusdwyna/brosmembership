@@ -37,6 +37,8 @@ class DashboardService {
       activeMemberships,
       expiringSoon,
       todayScans,
+      todayVisits,
+      totalVisits,
       newThisMonth,
       recentVerifications,
       membershipOverview,
@@ -49,6 +51,8 @@ class DashboardService {
         where: { status: 'ACTIVE', endDate: { gte: now, lte: expiringSoonUntil } },
       }),
       prisma.scanHistory.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.visit.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.visit.count(),
       prisma.member.count({ where: { createdAt: { gte: monthStart } } }),
       prisma.scanHistory.findMany({
         take: 10,
@@ -102,6 +106,27 @@ class DashboardService {
       })),
     );
 
+    // Visit totals follow the same buckets as member growth so both series can
+    // share one chart.
+    const [monthlyVisits, weeklyVisits] = await Promise.all([
+      Promise.all(
+        months.map(async (m) => ({
+          label: m.label,
+          count: await prisma.visit.count({
+            where: { createdAt: { gte: m.start, lte: m.end } },
+          }),
+        })),
+      ),
+      Promise.all(
+        weeks.map(async (w) => ({
+          label: w.label,
+          count: await prisma.visit.count({
+            where: { createdAt: { gte: w.start, lte: w.end } },
+          }),
+        })),
+      ),
+    ]);
+
     const activeCount = memberStatusCounts.find((m) => m.status === 'ACTIVE')?._count.id || 0;
     const totalAll = memberStatusCounts.reduce((sum, m) => sum + m._count.id, 0);
     const utilization = totalAll > 0 ? Math.round((activeCount / totalAll) * 1000) / 10 : 0;
@@ -111,6 +136,8 @@ class DashboardService {
       activeMemberships,
       expiringSoon,
       todayScans,
+      todayVisits,
+      totalVisits,
       newThisMonth,
       utilization,
       membershipOverview: membershipOverview.map((item) => ({
@@ -125,6 +152,8 @@ class DashboardService {
         .sort((a, b) => b.count - a.count),
       monthlyGrowth,
       weeklyGrowth,
+      monthlyVisits,
+      weeklyVisits,
       recentVerifications,
     };
   }

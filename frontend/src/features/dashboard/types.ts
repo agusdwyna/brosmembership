@@ -3,12 +3,16 @@ export interface DashboardSummary {
   activeMemberships: number;
   expiringSoon: number;
   todayScans: number;
+  todayVisits: number;
+  totalVisits: number;
   newThisMonth: number;
   utilization: number;
   membershipOverview: MembershipOverviewItem[];
   membershipByType: MembershipByTypeItem[];
   monthlyGrowth: GrowthItem[];
   weeklyGrowth: GrowthItem[];
+  monthlyVisits: GrowthItem[];
+  weeklyVisits: GrowthItem[];
   recentVerifications: RecentVerification[];
 }
 

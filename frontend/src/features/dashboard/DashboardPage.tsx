@@ -87,7 +87,13 @@ export function DashboardPage() {
   }
   if (!data) return null;
 
-  const growthData = growthView === 'monthly' ? data.monthlyGrowth : data.weeklyGrowth;
+  const growthSeries = growthView === 'monthly' ? data.monthlyGrowth : data.weeklyGrowth;
+  const visitSeries = growthView === 'monthly' ? data.monthlyVisits : data.weeklyVisits;
+  const growthData = growthSeries.map((item, index) => ({
+    label: item.label,
+    members: item.count,
+    visits: visitSeries[index]?.count ?? 0,
+  }));
 
   const pieData = data.membershipOverview.map((item) => ({
     name: item.status,
@@ -182,7 +188,12 @@ export function DashboardPage() {
         {/* Membership Growth */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <h3 className="text-[14px] font-semibold">Pertumbuhan Member</h3>
+            <div>
+              <h3 className="text-[14px] font-semibold">Member & Kunjungan</h3>
+              <p className="text-[11px] text-muted mt-0.5">
+                Kunjungan hari ini: {data.todayVisits.toLocaleString()}
+              </p>
+            </div>
             <div className="flex rounded-[4px] border border-border overflow-hidden">
               <button
                 onClick={() => setGrowthView('monthly')}
@@ -207,6 +218,14 @@ export function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
+            <div className="flex items-center gap-4 mb-2">
+              <span className="flex items-center gap-1.5 text-[12px] text-secondary">
+                <span className="w-2.5 h-2.5 rounded-full bg-brand" /> Member
+              </span>
+              <span className="flex items-center gap-1.5 text-[12px] text-secondary">
+                <span className="w-2.5 h-2.5 rounded-full bg-gold" /> Kunjungan
+              </span>
+            </div>
             <div className="h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={growthData}>
@@ -214,6 +233,10 @@ export function DashboardPage() {
                     <linearGradient id="colorGrowth" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="var(--color-brand, #B82230)" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="var(--color-brand, #B82230)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-gold, #C9A34E)" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="var(--color-gold, #C9A34E)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #EDF1F2)" />
@@ -229,10 +252,18 @@ export function DashboardPage() {
                   />
                   <Area
                     type="monotone"
-                    dataKey="count"
-                    name="New Members"
+                    dataKey="members"
+                    name="Member Baru"
                     stroke="var(--color-brand, #B82230)"
                     fill="url(#colorGrowth)"
+                    strokeWidth={2}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="visits"
+                    name="Kunjungan"
+                    stroke="var(--color-gold, #C9A34E)"
+                    fill="url(#colorVisits)"
                     strokeWidth={2}
                   />
                 </AreaChart>

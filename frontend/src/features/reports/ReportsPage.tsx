@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { reportsApi } from './api';
-import type { VerificationReport, ScanHistoryReportItem } from './types';
+import type { VerificationReport, ScanHistoryReportItem, VisitReportItem } from './types';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -22,7 +22,7 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { TrendingUp, CheckCircle2, XCircle, BarChart3 } from 'lucide-react';
+import { TrendingUp, CheckCircle2, XCircle, BarChart3, CalendarCheck } from 'lucide-react';
 import { toast } from '@/components/ui/toast-store';
 
 const presets = [
@@ -78,19 +78,34 @@ export function ReportsPage() {
     load(from, toStr);
   };
 
-  // Compute daily trend from scanHistory
+  // Daily trend merges scans and visits so both appear on one timeline.
   const dailyTrend = useMemo(() => {
-    if (!report?.scanHistory?.length) return [];
-    const map = new Map<string, { date: string; total: number; valid: number; failed: number }>();
+    if (!report) return [];
+    const map = new Map<
+      string,
+      { key: string; date: string; valid: number; failed: number; visits: number }
+    >();
+    const ensure = (iso: string) => {
+      const parsed = parseISO(iso);
+      const key = format(parsed, 'yyyy-MM-dd');
+      let entry = map.get(key);
+      if (!entry) {
+        entry = { key, date: format(parsed, 'dd MMM'), valid: 0, failed: 0, visits: 0 };
+        map.set(key, entry);
+      }
+      return entry;
+    };
+
     report.scanHistory.forEach((item) => {
-      const day = format(parseISO(item.createdAt), 'dd MMM');
-      const existing = map.get(day) || { date: day, total: 0, valid: 0, failed: 0 };
-      existing.total++;
-      if (item.result === 'VALID') existing.valid++;
-      else existing.failed++;
-      map.set(day, existing);
+      const entry = ensure(item.createdAt);
+      if (item.result === 'VALID') entry.valid++;
+      else entry.failed++;
     });
-    return Array.from(map.values()).reverse();
+    report.visits.forEach((item) => {
+      ensure(item.createdAt).visits++;
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
   }, [report]);
 
   // Pie chart data
@@ -176,6 +191,57 @@ export function ReportsPage() {
     },
   ];
 
+  const visitColumns = [
+    {
+      key: 'member',
+      header: 'Member',
+      render: (v: VisitReportItem) => (
+        <div>
+          <div className="font-medium">{v.member?.fullName || '-'}</div>
+          <div className="text-[12px] text-muted">{v.member?.memberNumber}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'officer',
+      header: 'Petugas',
+      render: (v: VisitReportItem) => (
+        <span className="text-secondary">{v.officer?.name || '-'}</span>
+      ),
+    },
+    {
+      key: 'membership',
+      header: 'Membership',
+      render: (v: VisitReportItem) =>
+        v.membership?.status ? <StatusBadge status={v.membership.status} /> : '-',
+    },
+    {
+      key: 'time',
+      header: 'Waktu',
+      render: (v: VisitReportItem) => (
+        <span className="text-secondary">{format(new Date(v.createdAt), 'dd MMM yyyy HH:mm')}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: 'w-[1%]',
+      render: (v: VisitReportItem) => (
+        <RowActions
+          actions={[
+            {
+              key: 'detail',
+              label: 'Lihat member',
+              variant: 'brand',
+              disabled: !v.member?.id,
+              onClick: () => v.member?.id && navigate(`/members/${v.member.id}`),
+            },
+          ]}
+        />
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageHeader title="Laporan" description="Analitik verifikasi dan laporan aktivitas" />
@@ -238,7 +304,7 @@ export function ReportsPage() {
       ) : report ? (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <Card>
               <CardContent className="py-3 sm:py-4">
                 <div className="flex items-center gap-2.5 sm:gap-3">
@@ -278,6 +344,19 @@ export function ReportsPage() {
                     <p className="text-[18px] sm:text-[20px] font-semibold text-danger">
                       {report.failed}
                     </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-3 sm:py-4">
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <div className="w-9 h-9 rounded-[4px] bg-gold/10 flex items-center justify-center shrink-0">
+                    <CalendarCheck className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-gold" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] sm:text-[12px] text-muted">Kunjungan</p>
+                    <p className="text-[18px] sm:text-[20px] font-semibold">{report.totalVisits}</p>
                   </div>
                 </div>
               </CardContent>
@@ -357,12 +436,23 @@ export function ReportsPage() {
           )}
 
           {/* Daily Trend — full width */}
-          {dailyTrend.length > 1 && (
+          {dailyTrend.length > 0 && (
             <Card className="mb-6">
               <CardHeader>
-                <h3 className="text-[14px] font-semibold">Daily Trend</h3>
+                <h3 className="text-[14px] font-semibold">Tren Harian</h3>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center gap-4 mb-2">
+                  <span className="flex items-center gap-1.5 text-[12px] text-secondary">
+                    <span className="w-2.5 h-2.5 rounded-full bg-success" /> Valid
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[12px] text-secondary">
+                    <span className="w-2.5 h-2.5 rounded-full bg-danger" /> Failed
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[12px] text-secondary">
+                    <span className="w-2.5 h-2.5 rounded-full bg-gold" /> Kunjungan
+                  </span>
+                </div>
                 <div className="h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={dailyTrend}>
@@ -374,6 +464,10 @@ export function ReportsPage() {
                         <linearGradient id="colorFailed" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
                           <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#C9A34E" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#C9A34E" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #EDF1F2)" />
@@ -403,12 +497,35 @@ export function ReportsPage() {
                         fill="url(#colorFailed)"
                         strokeWidth={2}
                       />
+                      <Area
+                        type="monotone"
+                        dataKey="visits"
+                        name="Kunjungan"
+                        stroke="#C9A34E"
+                        fill="url(#colorVisits)"
+                        strokeWidth={2}
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
           )}
+
+          {/* Visits Table */}
+          <Card className="mb-6">
+            <CardHeader>
+              <h3 className="text-[14px] font-semibold">Kunjungan</h3>
+            </CardHeader>
+            <DataTable
+              columns={visitColumns}
+              data={report.visits}
+              emptyTitle="Belum ada kunjungan"
+              emptyDescription="Kunjungan tercatat setelah petugas mengonfirmasi hasil scan yang valid."
+              getRowId={(v) => v.id}
+              pageSize={10}
+            />
+          </Card>
 
           {/* Scan History Table */}
           <Card>

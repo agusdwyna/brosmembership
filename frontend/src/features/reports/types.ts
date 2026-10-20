@@ -4,6 +4,16 @@ export interface VerificationReport {
   failed: number;
   breakdown: { result: string; count: number }[];
   scanHistory: ScanHistoryReportItem[];
+  totalVisits: number;
+  visits: VisitReportItem[];
+}
+
+export interface VisitReportItem {
+  id: string;
+  createdAt: string;
+  member: { id: string; memberNumber: string; fullName: string };
+  membership?: { status: string } | null;
+  officer: { name: string };
 }
 
 export interface ScanHistoryReportItem {

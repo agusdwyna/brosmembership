@@ -10,7 +10,7 @@ class ReportService {
       createdAt: { gte: dateFrom, lte: dateTo },
     };
 
-    const [totalScans, resultBreakdown, scanHistory] = await Promise.all([
+    const [totalScans, resultBreakdown, scanHistory, totalVisits, visits] = await Promise.all([
       prisma.scanHistory.count({ where }),
       prisma.scanHistory.groupBy({
         by: ['result'],
@@ -18,6 +18,17 @@ class ReportService {
         _count: { id: true },
       }),
       prisma.scanHistory.findMany({
+        where,
+        include: {
+          member: { select: { id: true, memberNumber: true, fullName: true } },
+          membership: { select: { status: true } },
+          officer: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: REPORT_ROW_LIMIT,
+      }),
+      prisma.visit.count({ where }),
+      prisma.visit.findMany({
         where,
         include: {
           member: { select: { id: true, memberNumber: true, fullName: true } },
@@ -43,6 +54,8 @@ class ReportService {
       failed,
       breakdown,
       scanHistory,
+      totalVisits,
+      visits,
     };
   }
 }
