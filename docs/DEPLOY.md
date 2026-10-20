@@ -26,6 +26,19 @@ relatif — tidak perlu domain terpisah, CORS, atau `VITE_API_URL`.
 > **Jangan** mengekspos `API_PORT` (3002). Hanya port `80` yang publik.
 > **Jangan** set `VITE_API_URL` untuk setup single-service ini.
 
+### Checklist cepat
+
+- [ ] PostgreSQL dibuat; internal URL disalin (bukan `localhost`)
+- [ ] Application dibuat dengan build pack **Dockerfile**, **Ports Exposes = 80**
+- [ ] Domain + HTTPS diisi
+- [ ] `DATABASE_URL` dan `JWT_SECRET` diisi
+- [ ] `PORT=80`, `API_PORT=3002`, `TRUST_PROXY=2`
+- [ ] Volume `uploads` → `/app/backend/uploads`
+- [ ] Deploy pertama: `RUN_SEED=true` + semua `SEED_*` diisi
+- [ ] Login admin berhasil, lalu `RUN_SEED=false`
+- [ ] `/health` mengembalikan `{"status":"ok"}`
+- [ ] Upload gambar bertahan setelah redeploy
+
 ---
 
 ## 1. File deployment di repo
