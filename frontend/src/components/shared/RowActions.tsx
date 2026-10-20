@@ -47,7 +47,7 @@ export function RowActions({ actions, className }: RowActionsProps) {
           className={cn(
             'inline-flex items-center justify-center h-8 px-2.5 rounded-[4px] border bg-surface',
             'text-[12px] font-medium whitespace-nowrap transition-colors',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/30',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/20',
             'disabled:opacity-40 disabled:pointer-events-none',
             variantStyles[action.variant ?? 'default'],
           )}

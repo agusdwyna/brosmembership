@@ -47,7 +47,7 @@ export function DashboardPage() {
         setData(res.data.data);
       })
       .catch(() => {
-        setError('Failed to load dashboard data');
+        setError('Gagal memuat data dashboard');
       })
       .finally(() => {
         setLoading(false);
@@ -101,7 +101,7 @@ export function DashboardPage() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-[20px] font-semibold text-foreground">Membership Dashboard</h1>
+        <h1 className="text-[20px] font-semibold text-foreground">Dashboard Membership</h1>
         <p className="text-[13px] text-secondary mt-0.5">Overview program membership</p>
       </div>
 
@@ -182,7 +182,7 @@ export function DashboardPage() {
         {/* Membership Growth */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <h3 className="text-[14px] font-semibold">Membership Growth</h3>
+            <h3 className="text-[14px] font-semibold">Pertumbuhan Member</h3>
             <div className="flex rounded-[4px] border border-border overflow-hidden">
               <button
                 onClick={() => setGrowthView('monthly')}
@@ -192,7 +192,7 @@ export function DashboardPage() {
                     : 'bg-surface text-secondary hover:text-foreground'
                 }`}
               >
-                Monthly
+                Bulanan
               </button>
               <button
                 onClick={() => setGrowthView('weekly')}
@@ -202,7 +202,7 @@ export function DashboardPage() {
                     : 'bg-surface text-secondary hover:text-foreground'
                 }`}
               >
-                Weekly
+                Mingguan
               </button>
             </div>
           </CardHeader>
@@ -244,7 +244,7 @@ export function DashboardPage() {
         {/* Membership Status Pie */}
         <Card>
           <CardHeader>
-            <h3 className="text-[14px] font-semibold">Membership Status</h3>
+            <h3 className="text-[14px] font-semibold">Status Membership</h3>
           </CardHeader>
           <CardContent>
             <div className="h-auto sm:h-52 flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
@@ -303,7 +303,7 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent>
             {data.membershipByType.length === 0 ? (
-              <p className="text-[13px] text-muted py-4 text-center">No data</p>
+              <p className="text-[13px] text-muted py-4 text-center">Tidak ada data</p>
             ) : (
               <div className="space-y-3">
                 {data.membershipByType.map((item) => (
@@ -330,11 +330,11 @@ export function DashboardPage() {
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <h3 className="text-[14px] font-semibold">Recent Activity</h3>
+            <h3 className="text-[14px] font-semibold">Aktivitas Terkini</h3>
           </CardHeader>
           <CardContent className="p-0">
             {data.recentVerifications.length === 0 ? (
-              <p className="text-[13px] text-muted py-4 text-center">No recent activity</p>
+              <p className="text-[13px] text-muted py-4 text-center">Belum ada aktivitas</p>
             ) : (
               <div className="divide-y divide-border">
                 {data.recentVerifications.slice(0, 8).map((item) => (

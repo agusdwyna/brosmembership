@@ -17,11 +17,13 @@ import { cardTemplateRoutes } from './modules/card-templates/routes';
 import { cardRoutes } from './modules/cards/routes';
 import { scannerRoutes } from './modules/scanner/routes';
 import { scanHistoryRoutes } from './modules/scan-history/routes';
+import { visitRoutes } from './modules/visits/routes';
 import { dashboardRoutes } from './modules/dashboard/routes';
 import { reportRoutes } from './modules/reports/routes';
 import { activityLogRoutes } from './modules/activity-log/routes';
 import { settingsRoutes } from './modules/settings/routes';
 import { userRoutes } from './modules/users/routes';
+import { roleRoutes } from './modules/roles/routes';
 import { authMiddleware } from './middlewares/auth';
 import { globalLimiter } from './middlewares/rate-limit';
 
@@ -124,11 +126,13 @@ app.use(`${env.API_PREFIX}/card-templates`, cardTemplateRoutes);
 app.use(`${env.API_PREFIX}/cards`, cardRoutes);
 app.use(`${env.API_PREFIX}/scanner`, scannerRoutes);
 app.use(`${env.API_PREFIX}/scan-history`, scanHistoryRoutes);
+app.use(`${env.API_PREFIX}/visits`, visitRoutes);
 app.use(`${env.API_PREFIX}/dashboard`, dashboardRoutes);
 app.use(`${env.API_PREFIX}/reports`, reportRoutes);
 app.use(`${env.API_PREFIX}/activity-logs`, activityLogRoutes);
 app.use(`${env.API_PREFIX}/settings`, settingsRoutes);
 app.use(`${env.API_PREFIX}/users`, userRoutes);
+app.use(`${env.API_PREFIX}/roles`, roleRoutes);
 
 // ─── Error Handling ─────────────────────────────────────
 

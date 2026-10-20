@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database';
 import type { RenewMembershipInput, ChangeTypeInput } from './schema';
 import { activityLogService } from '../activity-log/service';
+import { generateCardNumber, retryOnUnique } from '../../lib/numbering';
 
 export class MembershipService {
   async list(memberId?: string) {
@@ -39,6 +40,7 @@ export class MembershipService {
 
     const newType = await prisma.membershipType.findUnique({
       where: { id: input.membershipTypeId },
+      include: { defaultCardTemplate: true },
     });
     if (!newType)
       throw Object.assign(new Error('Membership type tidak ditemukan'), { status: 404 });
@@ -53,29 +55,38 @@ export class MembershipService {
     endDate.setDate(endDate.getDate() + newType.duration);
 
     // Update membership and issue new card (no revoke)
-    const result = await prisma.$transaction(async (tx) => {
-      const updated = await tx.membership.update({
-        where: { id },
-        data: {
-          membershipTypeId: input.membershipTypeId,
-          endDate,
-        },
-      });
+    const result = await retryOnUnique(() =>
+      prisma.$transaction(async (tx) => {
+        const updated = await tx.membership.update({
+          where: { id },
+          data: {
+            membershipTypeId: input.membershipTypeId,
+            endDate,
+          },
+        });
 
-      // Issue new card with new template
-      const cardTemplateId =
-        newType.defaultCardTemplateId || existing.cards[0]?.cardTemplateId || '';
-      const cardCount = await tx.membershipCard.count();
-      const newCard = await tx.membershipCard.create({
-        data: {
-          membershipId: updated.id,
-          cardNumber: `CARD-${String(cardCount + 1).padStart(6, '0')}`,
-          cardTemplateId,
-        },
-      });
+        // Never issue a card against a retired template or an empty FK.
+        const cardTemplateId =
+          newType.defaultCardTemplate?.status === 'ACTIVE'
+            ? newType.defaultCardTemplateId
+            : existing.cards[0]?.cardTemplateId;
+        if (!cardTemplateId) {
+          throw Object.assign(new Error('Tidak ada template kartu aktif untuk diterbitkan.'), {
+            status: 400,
+          });
+        }
 
-      return { updated, newCard };
-    });
+        const newCard = await tx.membershipCard.create({
+          data: {
+            membershipId: updated.id,
+            cardNumber: await generateCardNumber(tx),
+            cardTemplateId,
+          },
+        });
+
+        return { updated, newCard };
+      }),
+    );
 
     // Log activity
     await activityLogService.log({
@@ -96,41 +107,51 @@ export class MembershipService {
     const endDate = new Date(input.startDate);
     endDate.setDate(endDate.getDate() + existing.membershipType.duration);
 
-    const cardCount = await prisma.membershipCard.count();
-    const cardNumber = `CARD-${String(cardCount + 1).padStart(6, '0')}`;
+    const result = await retryOnUnique(() =>
+      prisma.$transaction(async (tx) => {
+        if (existing.status === 'ACTIVE') {
+          await tx.membership.update({
+            where: { id },
+            data: { status: 'EXPIRED' },
+          });
+        }
 
-    const result = await prisma.$transaction(async (tx) => {
-      if (existing.status === 'ACTIVE') {
-        await tx.membership.update({
-          where: { id },
-          data: { status: 'EXPIRED' },
+        const membership = await tx.membership.create({
+          data: {
+            memberId: existing.memberId,
+            membershipTypeId: existing.membershipTypeId,
+            startDate: input.startDate,
+            endDate,
+            status: 'ACTIVE',
+          },
         });
-      }
 
-      const membership = await tx.membership.create({
-        data: {
-          memberId: existing.memberId,
-          membershipTypeId: existing.membershipTypeId,
-          startDate: input.startDate,
-          endDate,
-          status: 'ACTIVE',
-        },
-      });
+        const type = await tx.membershipType.findUnique({
+          where: { id: existing.membershipTypeId },
+          include: { defaultCardTemplate: true },
+        });
 
-      const type = await tx.membershipType.findUnique({
-        where: { id: existing.membershipTypeId },
-      });
+        const cardTemplateId =
+          type?.defaultCardTemplate?.status === 'ACTIVE'
+            ? type.defaultCardTemplateId
+            : existing.cards[0]?.cardTemplateId;
+        if (!cardTemplateId) {
+          throw Object.assign(new Error('Tidak ada template kartu aktif untuk diterbitkan.'), {
+            status: 400,
+          });
+        }
 
-      const card = await tx.membershipCard.create({
-        data: {
-          membershipId: membership.id,
-          cardNumber,
-          cardTemplateId: type?.defaultCardTemplateId || existing.cards[0]?.cardTemplateId || '',
-        },
-      });
+        const card = await tx.membershipCard.create({
+          data: {
+            membershipId: membership.id,
+            cardNumber: await generateCardNumber(tx),
+            cardTemplateId,
+          },
+        });
 
-      return { membership, card };
-    });
+        return { membership, card };
+      }),
+    );
 
     // Log activity
     await activityLogService.log({

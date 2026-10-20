@@ -14,6 +14,10 @@ vi.mock('../../../config/database', () => ({
       update: vi.fn(),
       count: vi.fn(),
     },
+    role: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -37,6 +41,18 @@ const adminActive = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The last-admin guard now runs count + update in one transaction.
+  (prisma as any).$transaction = (callback: (tx: any) => any) => callback(prisma);
+  // Roles are now looked up in the roles table: ADMIN carries admin permissions,
+  // any other key resolves to a plain (non-admin) role.
+  (prisma.role.findUnique as any).mockImplementation(({ where }: { where: { key: string } }) =>
+    Promise.resolve(
+      where.key === 'ADMIN'
+        ? { key: 'ADMIN', permissions: ['user.manage', 'role.manage'] }
+        : { key: where.key, permissions: [] },
+    ),
+  );
+  (prisma.role.findMany as any).mockResolvedValue([{ key: 'ADMIN' }]);
 });
 
 describe('UserService.create', () => {

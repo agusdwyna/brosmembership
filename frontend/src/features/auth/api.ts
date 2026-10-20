@@ -9,4 +9,7 @@ export const authApi = {
 
   updateMe: (input: { name?: string; email?: string }) =>
     api.patch<{ data: User }>('/auth/me', input),
+
+  changePassword: (input: { currentPassword: string; newPassword: string }) =>
+    api.patch<{ data: { ok: true } }>('/auth/me/password', input),
 };

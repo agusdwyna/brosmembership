@@ -55,14 +55,14 @@ export function MembershipTypesPage() {
     try {
       if (toggleTarget.status === 'ACTIVE') {
         await membershipTypesApi.deactivate(toggleTarget.id);
-        toast.success('Membership type deactivated');
+        toast.success('Tipe membership dinonaktifkan');
       } else {
         await membershipTypesApi.activate(toggleTarget.id);
         toast.success('Membership type activated');
       }
       await load();
     } catch {
-      toast.error('Failed to update status');
+      toast.error('Gagal mengubah status');
     } finally {
       setToggleLoading(false);
       setToggleTarget(null);
@@ -81,15 +81,15 @@ export function MembershipTypesPage() {
   const columns = [
     {
       key: 'code',
-      header: 'Code',
+      header: 'Kode',
       render: (t: MembershipType) => <span className="font-mono">{t.code}</span>,
     },
     {
       key: 'name',
-      header: 'Name',
+      header: 'Nama',
       render: (t: MembershipType) => <span className="font-medium">{t.name}</span>,
     },
-    { key: 'duration', header: 'Duration', render: (t: MembershipType) => `${t.duration} days` },
+    { key: 'duration', header: 'Durasi', render: (t: MembershipType) => `${t.duration} hari` },
     {
       key: 'template',
       header: 'Template',
@@ -111,7 +111,7 @@ export function MembershipTypesPage() {
           actions={[
             {
               key: 'edit',
-              label: 'Edit type',
+              label: 'Ubah tipe',
               variant: 'brand',
               onClick: () => navigate(`/membership-types/${t.id}/edit`),
             },
@@ -130,27 +130,23 @@ export function MembershipTypesPage() {
   return (
     <div>
       <PageHeader
-        title="Membership Types"
-        description="Manage membership type configurations"
+        title="Tipe Membership"
+        description="Kelola konfigurasi tipe membership"
         action={
           <Button onClick={() => navigate('/membership-types/new')}>
-            <Plus className="w-4 h-4" /> Add Type
+            <Plus className="w-4 h-4" /> Tambah Tipe
           </Button>
         }
       />
       <Card>
         <TableToolbar>
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Search by name or code..."
-          />
+          <SearchInput value={search} onChange={setSearch} placeholder="Cari nama atau kode..." />
           <div className="w-40">
             <Select
               options={[
-                { value: '', label: 'All Status' },
-                { value: 'ACTIVE', label: 'Active' },
-                { value: 'INACTIVE', label: 'Inactive' },
+                { value: '', label: 'Semua Status' },
+                { value: 'ACTIVE', label: 'Aktif' },
+                { value: 'INACTIVE', label: 'Nonaktif' },
               ]}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -162,11 +158,11 @@ export function MembershipTypesPage() {
           columns={columns}
           data={filteredTypes}
           loading={loading}
-          emptyTitle="No membership types"
-          emptyDescription="Create a membership type to get started"
+          emptyTitle="Belum ada tipe membership"
+          emptyDescription="Tambahkan tipe membership untuk memulai"
           emptyAction={
             <Button onClick={() => navigate('/membership-types/new')}>
-              <Plus className="w-4 h-4" /> Add Type
+              <Plus className="w-4 h-4" /> Tambah Tipe
             </Button>
           }
           getRowId={(t) => t.id}
@@ -179,15 +175,15 @@ export function MembershipTypesPage() {
         onConfirm={handleToggleStatus}
         title={
           toggleTarget?.status === 'ACTIVE'
-            ? 'Deactivate Membership Type'
-            : 'Activate Membership Type'
+            ? 'Nonaktifkan Tipe Membership'
+            : 'Aktifkan Tipe Membership'
         }
         description={
           toggleTarget?.status === 'ACTIVE'
             ? `${toggleTarget.name} akan ditandai tidak aktif dan tidak dapat dipilih untuk membership baru.`
             : `${toggleTarget?.name ?? 'Membership type'} akan diaktifkan kembali dan dapat digunakan lagi.`
         }
-        confirmLabel={toggleTarget?.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+        confirmLabel={toggleTarget?.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan'}
         variant={toggleTarget?.status === 'ACTIVE' ? 'danger' : 'primary'}
         loading={toggleLoading}
       />
@@ -256,14 +252,14 @@ export function MembershipTypeFormPage() {
       if (confirmAction === 'deactivate') {
         await membershipTypesApi.deactivate(id);
         setStatus('INACTIVE');
-        toast.success('Membership type deactivated');
+        toast.success('Tipe membership dinonaktifkan');
       } else {
         await membershipTypesApi.activate(id);
         setStatus('ACTIVE');
         toast.success('Membership type activated');
       }
     } catch {
-      toast.error('Failed to update status');
+      toast.error('Gagal mengubah status');
     } finally {
       setActionLoading(false);
       setConfirmAction(null);
@@ -284,7 +280,7 @@ export function MembershipTypeFormPage() {
       navigate('/membership-types');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string } } };
-      const msg = axiosErr.response?.data?.error || 'Failed to save membership type';
+      const msg = axiosErr.response?.data?.error || 'Gagal menyimpan tipe membership';
       setFormError(msg);
       toast.error(msg);
     } finally {
@@ -295,7 +291,7 @@ export function MembershipTypeFormPage() {
   return (
     <div>
       <PageHeader
-        title={isNew ? 'Add Membership Type' : 'Edit Membership Type'}
+        title={isNew ? 'Tambah Tipe Membership' : 'Ubah Tipe Membership'}
         backTo="/membership-types"
         action={
           !isNew ? (
@@ -303,11 +299,11 @@ export function MembershipTypeFormPage() {
               <StatusBadge status={status} />
               {status === 'ACTIVE' ? (
                 <Button variant="danger" size="sm" onClick={() => setConfirmAction('deactivate')}>
-                  Deactivate
+                  Nonaktifkan
                 </Button>
               ) : (
                 <Button variant="secondary" size="sm" onClick={() => setConfirmAction('activate')}>
-                  Activate
+                  Aktifkan
                 </Button>
               )}
             </div>
@@ -315,7 +311,7 @@ export function MembershipTypeFormPage() {
         }
       />
 
-      <form onSubmit={handleSave} className="max-w-2xl space-y-6">
+      <form onSubmit={handleSave} className="space-y-6">
         <Card>
           <CardHeader>
             <h3>Membership Type Information</h3>
@@ -410,10 +406,10 @@ export function MembershipTypeFormPage() {
             disabled={saving}
             onClick={() => navigate('/membership-types')}
           >
-            Cancel
+            Batal
           </Button>
           <Button type="submit" loading={saving}>
-            Save
+            Simpan
           </Button>
         </div>
       </form>
@@ -423,14 +419,16 @@ export function MembershipTypeFormPage() {
         onClose={() => setConfirmAction(null)}
         onConfirm={handleToggleStatus}
         title={
-          confirmAction === 'deactivate' ? 'Deactivate Membership Type' : 'Activate Membership Type'
+          confirmAction === 'deactivate'
+            ? 'Nonaktifkan Tipe Membership'
+            : 'Aktifkan Tipe Membership'
         }
         description={
           confirmAction === 'deactivate'
             ? 'This type will be marked as inactive and cannot be selected for new memberships.'
             : 'This type will be reactivated and can be used for new memberships again.'
         }
-        confirmLabel={confirmAction === 'deactivate' ? 'Deactivate' : 'Activate'}
+        confirmLabel={confirmAction === 'deactivate' ? 'Nonaktifkan' : 'Aktifkan'}
         variant={confirmAction === 'deactivate' ? 'danger' : 'primary'}
         loading={actionLoading}
       />

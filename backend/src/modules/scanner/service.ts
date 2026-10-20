@@ -14,7 +14,7 @@ interface MembershipRef {
   status: string;
   startDate: Date;
   endDate: Date;
-  membershipType: { name: string };
+  membershipType: { name: string; status: string };
 }
 
 interface CardRef {
@@ -22,11 +22,14 @@ interface CardRef {
   cardNumber: string;
 }
 
-export type VerifyResult = 'VALID' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED' | 'NOT_FOUND';
+export type VerifyResult =
+  'VALID' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED' | 'INACTIVE' | 'NOT_FOUND';
 
 interface VerificationResponse {
   result: VerifyResult;
   reason?: string;
+  /** Id of the created scan_history row, so the UI can link a follow-up visit. */
+  scanId?: string;
   member?: {
     id: string;
     memberNumber: string;
@@ -74,7 +77,7 @@ export class ScannerService {
 
     // NOT_FOUND
     if (!member) {
-      await this.recordScan(
+      const scanId = await this.recordScan(
         null,
         null,
         'NOT_FOUND',
@@ -82,7 +85,25 @@ export class ScannerService {
         input.scannerMethod,
         officerId,
       );
-      return { result: 'NOT_FOUND', reason: 'Member tidak ditemukan' };
+      return { result: 'NOT_FOUND', reason: 'Member tidak ditemukan', scanId };
+    }
+
+    // A deactivated member must not validate, even with an active-looking card.
+    if (member.status !== 'ACTIVE') {
+      const scanId = await this.recordScan(
+        member.id,
+        null,
+        'INACTIVE',
+        'Member tidak aktif',
+        input.scannerMethod,
+        officerId,
+      );
+      return {
+        result: 'INACTIVE',
+        reason: 'Member tidak aktif',
+        member: this.mapMember(member),
+        scanId,
+      };
     }
 
     // Get latest membership with card and template
@@ -104,7 +125,7 @@ export class ScannerService {
     });
 
     if (!membership) {
-      await this.recordScan(
+      const scanId = await this.recordScan(
         member.id,
         null,
         'NOT_FOUND',
@@ -116,6 +137,7 @@ export class ScannerService {
         result: 'NOT_FOUND',
         reason: 'Membership tidak ditemukan',
         member: this.mapMember(member),
+        scanId,
       };
     }
 
@@ -143,9 +165,29 @@ export class ScannerService {
         }
       : undefined;
 
+    // A retired membership type must not validate either.
+    if (membership.membershipType.status !== 'ACTIVE') {
+      const scanId = await this.recordScan(
+        member.id,
+        membership.id,
+        'INACTIVE',
+        'Tipe membership tidak aktif',
+        input.scannerMethod,
+        officerId,
+      );
+      return {
+        result: 'INACTIVE',
+        reason: 'Tipe membership tidak aktif',
+        member: this.mapMember(member),
+        membership: this.mapMembership(membership),
+        scanId,
+        ...(card && template ? { card: { ...this.mapCard(card), template } } : {}),
+      };
+    }
+
     // SUSPENDED
     if (membership.status === 'SUSPENDED') {
-      await this.recordScan(
+      const scanId = await this.recordScan(
         member.id,
         membership.id,
         'SUSPENDED',
@@ -158,13 +200,14 @@ export class ScannerService {
         reason: 'Membership ditangguhkan',
         member: this.mapMember(member),
         membership: this.mapMembership(membership),
+        scanId,
         ...(card && template ? { card: { ...this.mapCard(card), template } } : {}),
       };
     }
 
     // CANCELLED
     if (membership.status === 'CANCELLED') {
-      await this.recordScan(
+      const scanId = await this.recordScan(
         member.id,
         membership.id,
         'CANCELLED',
@@ -177,6 +220,7 @@ export class ScannerService {
         reason: 'Membership dibatalkan',
         member: this.mapMember(member),
         membership: this.mapMembership(membership),
+        scanId,
         ...(card && template ? { card: { ...this.mapCard(card), template } } : {}),
       };
     }
@@ -189,7 +233,7 @@ export class ScannerService {
           data: { status: 'EXPIRED' },
         });
       }
-      await this.recordScan(
+      const scanId = await this.recordScan(
         member.id,
         membership.id,
         'EXPIRED',
@@ -202,16 +246,25 @@ export class ScannerService {
         reason: 'Membership telah kedaluwarsa',
         member: this.mapMember(member),
         membership: this.mapMembership(membership),
+        scanId,
         ...(card && template ? { card: { ...this.mapCard(card), template } } : {}),
       };
     }
 
     // VALID
-    await this.recordScan(member.id, membership.id, 'VALID', null, input.scannerMethod, officerId);
+    const scanId = await this.recordScan(
+      member.id,
+      membership.id,
+      'VALID',
+      null,
+      input.scannerMethod,
+      officerId,
+    );
     return {
       result: 'VALID',
       member: this.mapMember(member),
       membership: this.mapMembership(membership),
+      scanId,
       ...(card && template ? { card: { ...this.mapCard(card), template } } : {}),
     };
   }
@@ -245,10 +298,11 @@ export class ScannerService {
     reason: string | null,
     scannerMethod: string,
     officerId: string,
-  ) {
-    await prisma.scanHistory.create({
+  ): Promise<string> {
+    const scan = await prisma.scanHistory.create({
       data: { memberId, membershipId, result, reason, scannerMethod, officerId },
     });
+    return scan.id;
   }
 
   private mapMember(member: MemberRef) {

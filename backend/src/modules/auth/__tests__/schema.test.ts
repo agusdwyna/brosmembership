@@ -56,6 +56,16 @@ describe('auth schemas', () => {
       expect(result.success).toBe(true);
     });
 
+    it('accepts a custom role key (validated against the roles table later)', () => {
+      const result = registerSchema.safeParse({
+        email: 'sup@example.com',
+        password: 'password123',
+        name: 'Supervisor',
+        role: 'SUPERVISOR',
+      });
+      expect(result.success).toBe(true);
+    });
+
     it('rejects short name', () => {
       const result = registerSchema.safeParse({
         email: 'new@example.com',

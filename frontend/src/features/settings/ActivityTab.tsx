@@ -13,15 +13,20 @@ import { toast } from '@/components/ui/toast-store';
 const actionOptions = [
   { value: '', label: 'Semua Aksi' },
   { value: 'ASSIGN', label: 'Assign' },
-  { value: 'RENEW', label: 'Renew' },
-  { value: 'CHANGE_TYPE', label: 'Change Type' },
-  { value: 'SUSPEND', label: 'Suspend' },
-  { value: 'CANCEL', label: 'Cancel' },
-  { value: 'UPDATE_SETTINGS', label: 'Update Settings' },
-  { value: 'CREATE_USER', label: 'Create User' },
-  { value: 'UPDATE_USER', label: 'Update User' },
-  { value: 'DEACTIVATE_USER', label: 'Deactivate User' },
+  { value: 'RENEW', label: 'Perpanjang' },
+  { value: 'CHANGE_TYPE', label: 'Ubah Tipe' },
+  { value: 'SUSPEND', label: 'Tangguhkan' },
+  { value: 'CANCEL', label: 'Batalkan' },
+  { value: 'UPDATE_SETTINGS', label: 'Ubah Pengaturan' },
+  { value: 'CREATE_USER', label: 'Buat Pengguna' },
+  { value: 'UPDATE_USER', label: 'Ubah Pengguna' },
+  { value: 'ACTIVATE_USER', label: 'Aktifkan Pengguna' },
+  { value: 'DEACTIVATE_USER', label: 'Nonaktifkan Pengguna' },
   { value: 'RESET_PASSWORD', label: 'Reset Password' },
+  { value: 'CHANGE_PASSWORD', label: 'Ubah Password' },
+  { value: 'CREATE_ROLE', label: 'Buat Role' },
+  { value: 'UPDATE_ROLE', label: 'Ubah Role' },
+  { value: 'DELETE_ROLE', label: 'Hapus Role' },
 ];
 
 export function ActivityTab() {

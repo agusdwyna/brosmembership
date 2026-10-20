@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
-import { usersApi } from './api';
-import type { AppUser } from './types';
+import { rolesApi, usersApi } from './api';
+import type { AppUser, Role } from './types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -20,27 +20,23 @@ import { toast } from '@/components/ui/toast-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { AlertCircle, Plus } from 'lucide-react';
 
-const roleOptions = [
-  { value: 'OFFICER', label: 'Officer' },
-  { value: 'ADMIN', label: 'Admin' },
-];
-
 const createSchema = z.object({
   name: z.string().min(2, 'Nama minimal 2 karakter'),
   email: z.string().email('Email tidak valid'),
   password: z.string().min(6, 'Password minimal 6 karakter'),
-  role: z.enum(['ADMIN', 'OFFICER']),
+  role: z.string().min(1, 'Role wajib dipilih'),
 });
 
 const editSchema = z.object({
   name: z.string().min(2, 'Nama minimal 2 karakter'),
   email: z.string().email('Email tidak valid'),
-  role: z.enum(['ADMIN', 'OFFICER']),
+  role: z.string().min(1, 'Role wajib dipilih'),
 });
 
 export function UsersTab() {
   const currentUser = useAuthStore((s) => s.user);
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [meta, setMeta] = useState<ListMeta>();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -68,7 +64,14 @@ export function UsersTab() {
 
   useEffect(() => {
     load();
+    rolesApi
+      .list()
+      .then(({ data }) => setRoles(data.data))
+      .catch(() => toast.error('Gagal memuat daftar role'));
   }, []);
+
+  const roleOptions = roles.map((r) => ({ value: r.key, label: r.label }));
+  const roleLabels = new Map(roles.map((r) => [r.key, r.label]));
 
   const handleToggleStatus = async () => {
     if (!toggleTarget) return;
@@ -120,7 +123,9 @@ export function UsersTab() {
       key: 'role',
       header: 'Role',
       render: (u: AppUser) => (
-        <Badge variant={u.role === 'ADMIN' ? 'warning' : 'default'}>{u.role}</Badge>
+        <Badge variant={u.role === 'ADMIN' ? 'warning' : 'default'}>
+          {roleLabels.get(u.role) ?? u.role}
+        </Badge>
       ),
     },
     {
@@ -165,8 +170,8 @@ export function UsersTab() {
             <Select
               options={[
                 { value: '', label: 'Semua Status' },
-                { value: 'ACTIVE', label: 'Active' },
-                { value: 'INACTIVE', label: 'Inactive' },
+                { value: 'ACTIVE', label: 'Aktif' },
+                { value: 'INACTIVE', label: 'Nonaktif' },
               ]}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -193,6 +198,7 @@ export function UsersTab() {
 
       <CreateUserModal
         open={createOpen}
+        roleOptions={roleOptions}
         onClose={() => setCreateOpen(false)}
         onSaved={() => {
           setCreateOpen(false);
@@ -203,6 +209,7 @@ export function UsersTab() {
       {editUser && (
         <EditUserModal
           user={editUser}
+          roleOptions={roleOptions}
           onClose={() => setEditUser(null)}
           onSaved={() => {
             setEditUser(null);
@@ -239,10 +246,12 @@ export function UsersTab() {
 
 function CreateUserModal({
   open,
+  roleOptions,
   onClose,
   onSaved,
 }: {
   open: boolean;
+  roleOptions: { value: string; label: string }[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -339,10 +348,12 @@ function CreateUserModal({
 
 function EditUserModal({
   user,
+  roleOptions,
   onClose,
   onSaved,
 }: {
   user: AppUser;
+  roleOptions: { value: string; label: string }[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -364,10 +375,7 @@ function EditUserModal({
 
     setSaving(true);
     try {
-      await usersApi.update(
-        user.id,
-        form as { name: string; email: string; role: 'ADMIN' | 'OFFICER' },
-      );
+      await usersApi.update(user.id, form);
       toast.success('Pengguna diperbarui');
       onSaved();
     } catch (err) {

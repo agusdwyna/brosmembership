@@ -1,7 +1,9 @@
 import bcrypt from 'bcrypt';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { activityLogService } from '../activity-log/service';
 import { LIST_LIMIT } from '../../lib/query';
+import { ADMINISTRATIVE_PERMISSIONS } from '../../lib/permissions';
 import type { CreateUserInput, ResetPasswordInput, UpdateUserInput } from './schema';
 
 const SALT_ROUNDS = 10;
@@ -55,6 +57,8 @@ class UserService {
     const existing = await prisma.user.findUnique({ where: { email: input.email } });
     if (existing) throw Object.assign(new Error('Email sudah terdaftar'), { status: 409 });
 
+    await this.assertRoleExists(input.role);
+
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
     const user = await prisma.user.create({
       data: { email: input.email, passwordHash, name: input.name, role: input.role },
@@ -73,9 +77,15 @@ class UserService {
   async update(id: string, input: UpdateUserInput, performedBy: string) {
     const current = await this.getById(id);
 
-    // Demoting the last active admin would lock everyone out of user management.
-    if (current.role === 'ADMIN' && current.status === 'ACTIVE' && input.role === 'OFFICER') {
-      await this.assertNotLastActiveAdmin(id);
+    let guardLastAdmin = false;
+    if (input.role !== undefined && input.role !== current.role) {
+      await this.assertRoleExists(input.role);
+
+      // Demoting the last active admin into a non-admin role would lock everyone
+      // out of user/role management.
+      const wasAdmin = await this.roleIsAdministrative(current.role);
+      const staysAdmin = await this.roleIsAdministrative(input.role);
+      guardLastAdmin = current.status === 'ACTIVE' && wasAdmin && !staysAdmin;
     }
 
     if (input.email && input.email !== current.email) {
@@ -83,7 +93,11 @@ class UserService {
       if (existing) throw Object.assign(new Error('Email sudah terdaftar'), { status: 409 });
     }
 
-    const user = await prisma.user.update({ where: { id }, data: input, select: userSelect });
+    // Count + write in one transaction so the guard can't race another demotion.
+    const user = await prisma.$transaction(async (tx) => {
+      if (guardLastAdmin) await this.assertNotLastAdmin(id, tx);
+      return tx.user.update({ where: { id }, data: input, select: userSelect });
+    });
 
     await activityLogService.log({
       action: 'UPDATE_USER',
@@ -98,12 +112,16 @@ class UserService {
 
   async deactivate(id: string, performedBy: string) {
     const current = await this.getById(id);
-    if (current.role === 'ADMIN') await this.assertNotLastActiveAdmin(id);
+    const guard = current.status === 'ACTIVE' && (await this.roleIsAdministrative(current.role));
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: { status: 'INACTIVE' },
-      select: userSelect,
+    // Count + write in one transaction so the guard can't race another demotion.
+    const user = await prisma.$transaction(async (tx) => {
+      if (guard) await this.assertNotLastAdmin(id, tx);
+      return tx.user.update({
+        where: { id },
+        data: { status: 'INACTIVE' },
+        select: userSelect,
+      });
     });
 
     await activityLogService.log({
@@ -145,12 +163,34 @@ class UserService {
     return { id: user.id, email: user.email };
   }
 
-  /** Throws 400 when removing `id` would leave zero ACTIVE admins. */
-  private async assertNotLastActiveAdmin(id: string) {
-    const activeAdmins = await prisma.user.count({
-      where: { role: 'ADMIN', status: 'ACTIVE', id: { not: id } },
+  /** True when the role grants any administrative (user/role) permission. */
+  private async roleIsAdministrative(roleKey: string): Promise<boolean> {
+    const role = await prisma.role.findUnique({
+      where: { key: roleKey },
+      select: { permissions: true },
     });
-    if (activeAdmins === 0) {
+    return !!role && ADMINISTRATIVE_PERMISSIONS.some((p) => role.permissions.includes(p));
+  }
+
+  private async assertRoleExists(roleKey: string) {
+    const role = await prisma.role.findUnique({ where: { key: roleKey } });
+    if (!role) throw Object.assign(new Error('Role tidak ditemukan'), { status: 400 });
+  }
+
+  /** Throws 400 when removing `id` would leave zero ACTIVE users who can manage users/roles. */
+  private async assertNotLastAdmin(id: string, db: Prisma.TransactionClient = prisma) {
+    const adminRoles = await db.role.findMany({
+      where: { permissions: { hasSome: ADMINISTRATIVE_PERMISSIONS } },
+      select: { key: true },
+    });
+    const remaining = await db.user.count({
+      where: {
+        role: { in: adminRoles.map((r) => r.key) },
+        status: 'ACTIVE',
+        id: { not: id },
+      },
+    });
+    if (remaining === 0) {
       throw Object.assign(
         new Error('Tidak bisa menghapus admin aktif terakhir — sisakan minimal satu admin.'),
         { status: 400 },

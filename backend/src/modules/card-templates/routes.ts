@@ -1,24 +1,25 @@
 import { Router } from 'express';
 import { cardTemplateController } from './controller';
 import { validate } from '../../middlewares/validate';
-import { requireRole } from '../../middlewares/auth';
+import { requirePermission } from '../../middlewares/auth';
 import { createCardTemplateSchema, updateCardTemplateSchema } from './schema';
 import { upload } from '../../config/uploads';
 
 const router = Router();
 
-// Template design is admin-only; officers only read.
-const adminOnly = requireRole('ADMIN');
+// Template design requires cardTemplate.manage; viewing is a separate grant.
+const canView = requirePermission('cardTemplate.view');
+const canManage = requirePermission('cardTemplate.manage');
 
-router.get('/', cardTemplateController.list);
-router.get('/:id', cardTemplateController.getById);
-router.post('/', adminOnly, validate(createCardTemplateSchema), cardTemplateController.create);
-router.put('/:id', adminOnly, validate(updateCardTemplateSchema), cardTemplateController.update);
-router.post('/:id/deactivate', adminOnly, cardTemplateController.deactivate);
-router.post('/:id/activate', adminOnly, cardTemplateController.activate);
+router.get('/', canView, cardTemplateController.list);
+router.get('/:id', canView, cardTemplateController.getById);
+router.post('/', canManage, validate(createCardTemplateSchema), cardTemplateController.create);
+router.put('/:id', canManage, validate(updateCardTemplateSchema), cardTemplateController.update);
+router.post('/:id/deactivate', canManage, cardTemplateController.deactivate);
+router.post('/:id/activate', canManage, cardTemplateController.activate);
 router.post(
   '/:id/sides/:side/upload',
-  adminOnly,
+  canManage,
   upload.single('image'),
   cardTemplateController.uploadDesign,
 );

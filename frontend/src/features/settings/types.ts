@@ -31,17 +31,28 @@ export interface AppUser {
   updatedAt: string;
 }
 
+export interface Role {
+  id: string;
+  key: string;
+  label: string;
+  description: string | null;
+  permissions: string[];
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateUserInput {
   email: string;
   password: string;
   name: string;
-  role: 'ADMIN' | 'OFFICER';
+  role: string;
 }
 
 export interface UpdateUserInput {
   email?: string;
   name?: string;
-  role?: 'ADMIN' | 'OFFICER';
+  role?: string;
 }
 
 export interface SystemInfo {

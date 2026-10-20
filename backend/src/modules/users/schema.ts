@@ -1,18 +1,20 @@
 import { z } from 'zod';
 
-const roleEnum = z.enum(['ADMIN', 'OFFICER']);
+// Roles are now configurable rows (see the roles module); the value is validated
+// against the roles table in the service, not against a hardcoded enum here.
+const roleField = z.string().min(1, 'Role wajib diisi');
 
 export const createUserSchema = z.object({
   email: z.string().email('Email tidak valid'),
   password: z.string().min(6, 'Password minimal 6 karakter'),
   name: z.string().min(2, 'Nama minimal 2 karakter'),
-  role: roleEnum.default('OFFICER'),
+  role: roleField.default('OFFICER'),
 });
 
 export const updateUserSchema = z.object({
   email: z.string().email('Email tidak valid').optional(),
   name: z.string().min(2, 'Nama minimal 2 karakter').optional(),
-  role: roleEnum.optional(),
+  role: roleField.optional(),
 });
 
 export const resetPasswordSchema = z.object({

@@ -57,6 +57,50 @@ export async function authMiddleware(
   }
 }
 
+/**
+ * Role → permissions memoized in-process. Roles change rarely, so a plain Map
+ * avoids a DB round-trip on every request; the roles module clears it on write.
+ */
+const rolePermissionCache = new Map<string, string[]>();
+
+export function clearRolePermissionCache(): void {
+  rolePermissionCache.clear();
+}
+
+export async function getRolePermissions(roleKey: string): Promise<string[]> {
+  const cached = rolePermissionCache.get(roleKey);
+  if (cached) return cached;
+
+  const role = await prisma.role.findUnique({
+    where: { key: roleKey },
+    select: { permissions: true },
+  });
+  const permissions = role?.permissions ?? [];
+  rolePermissionCache.set(roleKey, permissions);
+  return permissions;
+}
+
+/** Passes when the caller's role grants ANY of the required permissions. */
+export function requirePermission(...required: string[]) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(403).json({ error: 'Akses ditolak' });
+        return;
+      }
+      const permissions = await getRolePermissions(req.user.role);
+      if (!required.some((permission) => permissions.includes(permission))) {
+        res.status(403).json({ error: 'Akses ditolak' });
+        return;
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+/** Legacy name-based guard, kept for call sites not yet migrated to permissions. */
 export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user || !roles.includes(req.user.role)) {

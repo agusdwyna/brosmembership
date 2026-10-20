@@ -14,6 +14,10 @@ export type ActivityAction =
   | 'ACTIVATE_USER'
   | 'DEACTIVATE_USER'
   | 'RESET_PASSWORD'
+  | 'CHANGE_PASSWORD'
+  | 'CREATE_ROLE'
+  | 'UPDATE_ROLE'
+  | 'DELETE_ROLE'
   | 'UPDATE_SETTINGS';
 
 class ActivityLogService {

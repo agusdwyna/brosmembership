@@ -5,6 +5,7 @@ import type {
   AppSettings,
   AppUser,
   CreateUserInput,
+  Role,
   SystemInfo,
   UpdateSettingsInput,
   UpdateUserInput,
@@ -35,4 +36,16 @@ export const usersApi = {
 export const activityLogApi = {
   list: (params?: { search?: string; action?: string }) =>
     api.get<ListResponse<ActivityLogEntry>>('/activity-logs', { params }),
+};
+
+export const rolesApi = {
+  list: () => api.get<{ data: Role[] }>('/roles'),
+
+  create: (input: { key: string; label: string; description?: string; permissions: string[] }) =>
+    api.post<{ data: Role }>('/roles', input),
+
+  update: (id: string, input: { label?: string; description?: string; permissions?: string[] }) =>
+    api.put<{ data: Role }>(`/roles/${id}`, input),
+
+  remove: (id: string) => api.delete<{ data: { id: string } }>(`/roles/${id}`),
 };

@@ -21,7 +21,23 @@ model User {
 
   scanHistory   ScanHistory[]
   activityLogs  ActivityLog[]
+  visits        Visit[]
   @@map("users")
+}
+
+// Configurable roles. `User.role` stores Role.key (plain string), so adding or
+// editing roles never touches the users table. `key` is immutable once created.
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  description String?
+  permissions String[]
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roles")
 }
 
 // ─── Companies ──────────────────────────────────────────
@@ -64,6 +80,7 @@ model Member {
   memberships  Membership[]
   scanHistory  ScanHistory[]
   activityLogs ActivityLog[]
+  visits       Visit[]
 
   @@map("members")
 }
@@ -103,6 +120,7 @@ model Membership {
   membershipType MembershipType  @relation(fields: [membershipTypeId], references: [id])
   cards          MembershipCard[]
   scanHistory    ScanHistory[]
+  visits         Visit[]
 
   @@map("memberships")
 }
@@ -220,4 +238,23 @@ model ScanHistory {
   officer    User           @relation(fields: [officerId], references: [id])
 
   @@map("scan_history")
+}
+
+// A recorded visit: the front office confirmed a validated member went on to
+// register at the (separate) SIMRS. Kept apart from ScanHistory so visit data
+// stays clean; `scanId` links back to the scan that triggered it and being
+// unique stops a single scan from recording a visit twice.
+model Visit {
+  id           String   @id @default(cuid())
+  memberId     String
+  membershipId String?
+  officerId    String
+  scanId       String?  @unique
+  createdAt    DateTime @default(now())
+
+  member     Member      @relation(fields: [memberId], references: [id])
+  membership Membership? @relation(fields: [membershipId], references: [id])
+  officer    User        @relation(fields: [officerId], references: [id])
+
+  @@map("visits")
 }

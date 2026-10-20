@@ -64,7 +64,7 @@ openssl rand -hex 32
 
 ### Seed pertama kali (opsional)
 
-Seed bersifat idempotent (memakai upsert). Isi dulu password-nya:
+Seed aman dijalankan berulang untuk user/role/setting (upsert) dan tidak lagi menduplikasi template kartu. Isi dulu password-nya:
 
 | Variabel | Contoh |
 |----------|--------|

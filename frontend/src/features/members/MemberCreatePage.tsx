@@ -61,11 +61,11 @@ export function MemberCreatePage() {
     setLoading(true);
     try {
       const { data } = await membersApi.create(form);
-      toast.success('Member created successfully');
+      toast.success('Member berhasil dibuat');
       navigate(`/members/${data.data.id}`);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string } } };
-      const msg = axiosErr.response?.data?.error || 'Failed to create member';
+      const msg = axiosErr.response?.data?.error || 'Gagal membuat member';
       setFormError(msg);
       toast.error(msg);
     } finally {
@@ -82,23 +82,23 @@ export function MemberCreatePage() {
   return (
     <div>
       <PageHeader
-        title="Add Member"
-        description="Register a new member with membership"
+        title="Tambah Member"
+        description="Daftarkan member baru beserta membership"
         backTo="/members"
       />
 
-      <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
-            <h3>Member Information</h3>
+            <h3>Informasi Member</h3>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
               <Input
-                label="Full Name"
+                label="Nama Lengkap"
                 value={form.fullName}
                 onChange={(e) => handleChange('fullName', e.target.value)}
-                placeholder="Enter full name"
+                placeholder="Masukkan nama lengkap"
                 error={fieldErrors.fullName}
                 disabled={loading}
                 required
@@ -116,7 +116,7 @@ export function MemberCreatePage() {
                 className="sm:col-span-2"
               />
               <Input
-                label="Phone"
+                label="Telepon"
                 value={form.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 placeholder="08xxx"
@@ -133,25 +133,25 @@ export function MemberCreatePage() {
                 disabled={loading}
               />
               <Input
-                label="Date of Birth"
+                label="Tanggal Lahir"
                 type="date"
                 value={form.dateOfBirth || ''}
                 onChange={(e) => handleChange('dateOfBirth', e.target.value)}
                 disabled={loading}
               />
               <Select
-                label="Company"
+                label="Perusahaan"
                 options={companies.map((c) => ({ value: c.id, label: c.name }))}
-                placeholder="No company"
+                placeholder="Tanpa perusahaan"
                 value={form.companyId || ''}
                 onChange={(e) => handleChange('companyId', e.target.value)}
                 disabled={loading}
               />
               <Input
-                label="Address"
+                label="Alamat"
                 value={form.address}
                 onChange={(e) => handleChange('address', e.target.value)}
-                placeholder="Full address"
+                placeholder="Alamat lengkap"
                 disabled={loading}
                 className="sm:col-span-2"
               />
@@ -166,9 +166,9 @@ export function MemberCreatePage() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
               <Select
-                label="Membership Type"
+                label="Tipe Membership"
                 options={typeOptions}
-                placeholder="Select type"
+                placeholder="Pilih tipe"
                 value={form.membershipTypeId}
                 onChange={(e) => handleChange('membershipTypeId', e.target.value)}
                 error={fieldErrors.membershipTypeId}
@@ -176,7 +176,7 @@ export function MemberCreatePage() {
                 required
               />
               <Input
-                label="Start Date"
+                label="Tanggal Mulai"
                 type="date"
                 value={form.startDate}
                 onChange={(e) => handleChange('startDate', e.target.value)}
@@ -187,7 +187,7 @@ export function MemberCreatePage() {
             </div>
             {endDate && (
               <div className="mt-3 bg-bg rounded-[4px] px-4 py-3 text-[13px]">
-                <span className="text-secondary">End date: </span>
+                <span className="text-secondary">Berakhir: </span>
                 <span className="font-medium">
                   {endDate.toLocaleDateString('id-ID', {
                     day: 'numeric',
@@ -217,10 +217,10 @@ export function MemberCreatePage() {
             disabled={loading}
             onClick={() => navigate('/members')}
           >
-            Cancel
+            Batal
           </Button>
           <Button type="submit" loading={loading}>
-            Save & Issue Card
+            Simpan &amp; Terbitkan Kartu
           </Button>
         </div>
       </form>

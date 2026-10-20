@@ -39,7 +39,7 @@ export function CardsPage() {
   const columns = [
     {
       key: 'card',
-      header: 'Card Number',
+      header: 'Nomor Kartu',
       render: (c: MembershipCard) => <span className="font-mono">{c.cardNumber}</span>,
     },
     {
@@ -54,12 +54,12 @@ export function CardsPage() {
     },
     {
       key: 'type',
-      header: 'Type',
+      header: 'Tipe',
       render: (c: MembershipCard) => c.membership.membershipType.name,
     },
     {
       key: 'issued',
-      header: 'Issued',
+      header: 'Diterbitkan',
       render: (c: MembershipCard) => (
         <span className="text-secondary">{format(new Date(c.issuedAt), 'dd MMM yyyy')}</span>
       ),
@@ -85,14 +85,14 @@ export function CardsPage() {
 
   return (
     <div>
-      <PageHeader title="Cards" description="Manage membership cards" />
+      <PageHeader title="Kartu" description="Kelola kartu membership" />
 
       <Card>
         <TableToolbar>
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Search cards..."
+            placeholder="Cari kartu..."
             onSubmit={() => load(search)}
           />
         </TableToolbar>
@@ -101,8 +101,8 @@ export function CardsPage() {
           columns={columns}
           data={cards}
           loading={loading}
-          emptyTitle="No cards yet"
-          emptyDescription="Cards will appear when members are created"
+          emptyTitle="Belum ada kartu"
+          emptyDescription="Kartu muncul setelah member dibuat"
           getRowId={(c) => c.id}
         />
       </Card>

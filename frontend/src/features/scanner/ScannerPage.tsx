@@ -5,10 +5,12 @@ import { CameraScanner } from './components/CameraScanner';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { ScannerCardPreview } from './components/ScannerCardPreview';
+import { visitsApi } from '@/features/visits/api';
 import { toast } from '@/components/ui/toast-store';
 import { CheckCircle2, XCircle, Keyboard, Usb, Camera, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSettingsStore } from '@/stores/settings-store';
+import { useAuthStore } from '@/stores/auth-store';
 
 type ScannerState = 'ready' | 'scanning' | 'processing' | 'result';
 
@@ -55,6 +57,14 @@ const resultConfig: Record<
     headerText: 'text-white',
     iconBg: 'bg-white/20',
   },
+  INACTIVE: {
+    icon: <XCircle className="w-10 h-10" />,
+    title: 'Member Tidak Aktif',
+    subtitle: 'Member atau tipe membership tidak aktif',
+    headerBg: 'bg-warning',
+    headerText: 'text-white',
+    iconBg: 'bg-white/20',
+  },
   NOT_FOUND: {
     icon: <XCircle className="w-10 h-10" />,
     title: 'Not Found',
@@ -85,6 +95,9 @@ export function ScannerPage() {
   const [state, setState] = useState<ScannerState>(
     defaultMethod === 'CAMERA' ? 'scanning' : 'ready',
   );
+  const [visitSaving, setVisitSaving] = useState(false);
+  const [visitRecorded, setVisitRecorded] = useState(false);
+  const canRecordVisit = useAuthStore((s) => (s.user?.permissions ?? []).includes('visit.create'));
   const inputRef = useRef<HTMLInputElement>(null);
   const readerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -123,16 +136,17 @@ export function ScannerPage() {
 
       setState('processing');
       setResult(null);
+      setVisitRecorded(false);
 
       try {
         const { data } = await scannerApi.verify(t, m);
         setResult(data.data);
         setState('result');
-        if (data.data.result === 'VALID') toast.success('Membership verified');
+        if (data.data.result === 'VALID') toast.success('Membership terverifikasi');
       } catch {
-        setResult({ result: 'NOT_FOUND', reason: 'Verification error' });
+        setResult({ result: 'NOT_FOUND', reason: 'Verifikasi gagal' });
         setState('result');
-        toast.error('Verification failed');
+        toast.error('Verifikasi gagal');
       } finally {
         setToken('');
       }
@@ -169,11 +183,32 @@ export function ScannerPage() {
   const handleScanAnother = () => {
     setResult(null);
     setToken('');
+    setVisitRecorded(false);
     if (method === 'CAMERA') {
       setCameraActive(true);
       setState('scanning');
     } else {
       setState('ready');
+    }
+  };
+
+  // Front office confirms the member went on to register at the SIMRS; that is
+  // what records a visit (the scan itself only proves the membership is valid).
+  const handleRecordVisit = async () => {
+    if (!result?.member) return;
+    setVisitSaving(true);
+    try {
+      await visitsApi.record({
+        memberId: result.member.id,
+        membershipId: result.membership?.id ?? null,
+        scanId: result.scanId ?? null,
+      });
+      setVisitRecorded(true);
+      toast.success('Kunjungan tercatat');
+    } catch {
+      toast.error('Gagal mencatat kunjungan');
+    } finally {
+      setVisitSaving(false);
     }
   };
 
@@ -271,9 +306,20 @@ export function ScannerPage() {
                   </div>
                 )}
 
-                <Button onClick={handleScanAnother} className="mt-2">
-                  Scan Another
-                </Button>
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <Button onClick={handleScanAnother} variant="secondary">
+                    Scan Another
+                  </Button>
+                  {result.result === 'VALID' && result.member && canRecordVisit && (
+                    <Button
+                      onClick={handleRecordVisit}
+                      loading={visitSaving}
+                      disabled={visitRecorded}
+                    >
+                      {visitRecorded ? 'Kunjungan tercatat' : 'Daftarkan Kunjungan'}
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Card Preview */}

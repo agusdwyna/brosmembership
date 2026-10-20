@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { DEFAULT_ROLES } from '../src/lib/permissions';
 
 const prisma = new PrismaClient();
 
@@ -13,8 +14,13 @@ const OFFICER_PASSWORD = process.env.SEED_OFFICER_PASSWORD || 'officer123';
 async function main() {
   console.log('🌱 Seeding database...');
 
-  if (process.env.NODE_ENV === 'production' && !process.env.SEED_ADMIN_PASSWORD) {
-    throw new Error('SEED_ADMIN_PASSWORD wajib diisi saat seeding di production.');
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (!process.env.SEED_ADMIN_PASSWORD || !process.env.SEED_OFFICER_PASSWORD)
+  ) {
+    throw new Error(
+      'SEED_ADMIN_PASSWORD dan SEED_OFFICER_PASSWORD wajib diisi saat seeding di production.',
+    );
   }
 
   // 1. Create admin user
@@ -45,38 +51,63 @@ async function main() {
   });
   console.log(`  ✓ User: ${officer.email}`);
 
-  // 3. Create card template with front and back sides
-  const template = await prisma.cardTemplate.create({
-    data: {
-      name: 'BROs Default Card',
-      sides: {
-        create: [
-          {
-            side: 'FRONT',
-            elements: {
-              create: [
-                { type: 'MEMBER_NAME', x: 20, y: 120, width: 260, height: 30, fontSize: 16, fontWeight: 'bold', alignment: 'left' },
-                { type: 'MEMBER_NUMBER', x: 20, y: 155, width: 260, height: 20, fontSize: 12, fontWeight: 'normal', alignment: 'left' },
-                { type: 'MEMBERSHIP_NAME', x: 20, y: 180, width: 260, height: 20, fontSize: 14, fontWeight: 'bold', alignment: 'left' },
-                { type: 'EXPIRY_DATE', x: 20, y: 210, width: 260, height: 20, fontSize: 11, fontWeight: 'normal', alignment: 'left' },
-              ],
-            },
-          },
-          {
-            side: 'BACK',
-            elements: {
-              create: [
-                { type: 'QR_CODE', x: 160, y: 20, width: 80, height: 80 },
-              ],
-            },
-          },
-        ],
+  // 3. Seed built-in roles. System roles are code-owned, so re-seeding keeps
+  // their label/permissions in sync; custom roles made in the UI are untouched.
+  for (const role of DEFAULT_ROLES) {
+    await prisma.role.upsert({
+      where: { key: role.key },
+      update: {
+        label: role.label,
+        description: role.description,
+        permissions: role.permissions,
+        isSystem: role.isSystem,
       },
-    },
-  });
-  console.log(`  ✓ Card Template: ${template.name} (with FRONT + BACK sides)`);
+      create: {
+        key: role.key,
+        label: role.label,
+        description: role.description,
+        permissions: role.permissions,
+        isSystem: role.isSystem,
+      },
+    });
+    console.log(`  ✓ Role: ${role.key} (${role.permissions.length} permission)`);
+  }
 
-  // 4. Create membership types
+  // 4. Create the default card template once. `create` on every re-seed used to
+  // add another duplicate template, so reuse an existing one by name.
+  const template =
+    (await prisma.cardTemplate.findFirst({ where: { name: 'BROs Default Card' } })) ??
+    (await prisma.cardTemplate.create({
+      data: {
+        name: 'BROs Default Card',
+        sides: {
+          create: [
+            {
+              side: 'FRONT',
+              elements: {
+                create: [
+                  { type: 'MEMBER_NAME', x: 20, y: 120, width: 260, height: 30, fontSize: 16, fontWeight: 'bold', alignment: 'left' },
+                  { type: 'MEMBER_NUMBER', x: 20, y: 155, width: 260, height: 20, fontSize: 12, fontWeight: 'normal', alignment: 'left' },
+                  { type: 'MEMBERSHIP_NAME', x: 20, y: 180, width: 260, height: 20, fontSize: 14, fontWeight: 'bold', alignment: 'left' },
+                  { type: 'EXPIRY_DATE', x: 20, y: 210, width: 260, height: 20, fontSize: 11, fontWeight: 'normal', alignment: 'left' },
+                ],
+              },
+            },
+            {
+              side: 'BACK',
+              elements: {
+                create: [
+                  { type: 'QR_CODE', x: 160, y: 20, width: 80, height: 80 },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    }));
+  console.log(`  ✓ Card Template: ${template.name}`);
+
+  // 5. Create membership types
   const silver = await prisma.membershipType.upsert({
     where: { code: 'SILVER' },
     update: {},
@@ -116,7 +147,7 @@ async function main() {
   });
   console.log(`  ✓ Membership Type: ${platinum.name}`);
 
-  // 5. Create companies
+  // 6. Create companies
   const brosCompany = await prisma.company.upsert({
     where: { code: 'BROS' },
     update: {},
@@ -143,7 +174,7 @@ async function main() {
   });
   console.log(`  ✓ Company: ${partnerCompany.name}`);
 
-  // 6. Default application settings. upsert keeps existing values on re-seed,
+  // 7. Default application settings. upsert keeps existing values on re-seed,
   // so an operator's configured brand/prefix is never overwritten.
   const defaultSettings: Record<string, string> = {
     brandName: 'Bros Membership',

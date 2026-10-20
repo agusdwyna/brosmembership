@@ -31,7 +31,7 @@ export function DataTable<T>({
   columns,
   data,
   loading,
-  emptyTitle = 'No data',
+  emptyTitle = 'Tidak ada data',
   emptyDescription,
   emptyAction,
   onRowClick,
@@ -206,7 +206,7 @@ export function DataTable<T>({
       {/* Pagination */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-border">
         <div className="flex items-center gap-2">
-          <span className="text-[12px] text-muted">Rows per page</span>
+          <span className="text-[12px] text-muted">Baris per halaman</span>
           <select
             value={pageSize}
             onChange={(e) => {
@@ -223,7 +223,7 @@ export function DataTable<T>({
         {totalPages > 1 && (
           <>
             <span className="text-[12px] text-muted">
-              Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.length)} of{' '}
+              Menampilkan {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.length)} dari{' '}
               {data.length}
             </span>
             <div className="flex items-center gap-1">

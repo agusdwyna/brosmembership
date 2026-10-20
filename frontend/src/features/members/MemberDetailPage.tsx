@@ -2,6 +2,10 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { membersApi } from './api';
 import { activityLogApi } from './activity-log-api';
+import { visitsApi } from '@/features/visits/api';
+import type { VisitItem } from '@/features/visits/types';
+import { useAuthStore } from '@/stores/auth-store';
+import { useCan } from '@/lib/use-permission';
 import type { Member, ActivityLogItem, Membership, UpdateMemberInput } from './types';
 import { updateMemberSchema } from './validation';
 import { useFormErrors } from '@/lib/use-form-error';
@@ -44,6 +48,10 @@ const ACTION_COLORS: Record<string, string> = {
 
 export function MemberDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const permissions = useAuthStore((s) => s.user?.permissions) ?? [];
+  const canViewActivity = permissions.includes('activityLog.view');
+  const canViewVisits = permissions.includes('visit.view');
+  const canManageMember = useCan('member.manage');
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -61,6 +69,10 @@ export function MemberDetailPage() {
   // Activity log
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
+
+  // Visits
+  const [visits, setVisits] = useState<VisitItem[]>([]);
+  const [visitsLoading, setVisitsLoading] = useState(true);
 
   // Inline profile editing
   const [editing, setEditing] = useState(false);
@@ -101,7 +113,10 @@ export function MemberDetailPage() {
   }, [id]);
 
   const loadActivityLogs = useCallback(async () => {
-    if (!id) return;
+    if (!id || !canViewActivity) {
+      setLogsLoading(false);
+      return;
+    }
     setLogsLoading(true);
     try {
       const { data } = await activityLogApi.getByMemberId(id);
@@ -111,12 +126,29 @@ export function MemberDetailPage() {
     } finally {
       setLogsLoading(false);
     }
-  }, [id]);
+  }, [id, canViewActivity]);
+
+  const loadVisits = useCallback(async () => {
+    if (!id || !canViewVisits) {
+      setVisitsLoading(false);
+      return;
+    }
+    setVisitsLoading(true);
+    try {
+      const { data } = await visitsApi.byMember(id);
+      setVisits(data.data);
+    } catch {
+      toast.error('Gagal memuat riwayat kunjungan');
+    } finally {
+      setVisitsLoading(false);
+    }
+  }, [id, canViewVisits]);
 
   useEffect(() => {
     loadMember();
     loadActivityLogs();
-  }, [loadMember, loadActivityLogs]);
+    loadVisits();
+  }, [loadMember, loadActivityLogs, loadVisits]);
 
   useEffect(() => {
     companiesApi
@@ -167,7 +199,7 @@ export function MemberDetailPage() {
       await loadActivityLogs();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string } } };
-      const msg = axiosErr.response?.data?.error || 'Failed to update member';
+      const msg = axiosErr.response?.data?.error || 'Gagal memperbarui member';
       setFormError(msg);
       toast.error(msg);
     } finally {
@@ -185,7 +217,7 @@ export function MemberDetailPage() {
       }
       if (confirmAction.type === 'suspend') {
         await membershipsApi.suspend(confirmAction.targetId);
-        toast.success('Membership suspended');
+        toast.success('Membership ditangguhkan');
       }
       if (confirmAction.type === 'cancel') {
         await membershipsApi.cancel(confirmAction.targetId);
@@ -230,7 +262,7 @@ export function MemberDetailPage() {
       await loadMember();
       await loadActivityLogs();
     } catch {
-      toast.error('Failed to change membership type');
+      toast.error('Gagal mengubah tipe membership');
     } finally {
       setChangeTypeLoading(false);
     }
@@ -288,23 +320,25 @@ export function MemberDetailPage() {
         description={member.memberNumber}
         backTo="/members"
         action={
-          <div className="flex gap-2">
-            {member.status === 'ACTIVE' ? (
-              <Button
-                variant="danger"
-                onClick={() => setConfirmAction({ type: 'deactivate', targetId: member.id })}
-              >
-                Deactivate
-              </Button>
-            ) : (
-              <Button
-                variant="secondary"
-                onClick={() => setConfirmAction({ type: 'activate', targetId: member.id })}
-              >
-                Activate
-              </Button>
-            )}
-          </div>
+          canManageMember ? (
+            <div className="flex gap-2">
+              {member.status === 'ACTIVE' ? (
+                <Button
+                  variant="danger"
+                  onClick={() => setConfirmAction({ type: 'deactivate', targetId: member.id })}
+                >
+                  Nonaktifkan
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={() => setConfirmAction({ type: 'activate', targetId: member.id })}
+                >
+                  Aktifkan
+                </Button>
+              )}
+            </div>
+          ) : undefined
         }
       />
 
@@ -495,13 +529,13 @@ export function MemberDetailPage() {
                         setConfirmAction({ type: 'cancel', targetId: currentMembership.id })
                       }
                     >
-                      <Ban className="w-3 h-3" /> Cancel
+                      <Ban className="w-3 h-3" /> Batalkan
                     </Button>
                   </div>
                 )}
               </div>
             ) : (
-              <p className="text-[13px] text-muted">No membership</p>
+              <p className="text-[13px] text-muted">Belum ada membership</p>
             )}
           </CardContent>
         </Card>
@@ -576,7 +610,7 @@ export function MemberDetailPage() {
                       className="w-full"
                       onClick={handlePrintCard}
                     >
-                      <Printer className="w-3 h-3" /> Print Card
+                      <Printer className="w-3 h-3" /> Cetak Kartu
                     </Button>
                   </>
                 )}
@@ -589,48 +623,81 @@ export function MemberDetailPage() {
       </div>
 
       {/* Activity Log */}
-      <Card className="mt-6">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <h3>Activity Log</h3>
-          <span className="text-[12px] text-muted">{activityLogs.length} entries</span>
-        </CardHeader>
-        <CardContent className="p-0">
-          {logsLoading ? (
-            <div className="px-5 py-4">
-              <div className="h-20 bg-bg rounded-[4px] animate-pulse" />
-            </div>
-          ) : activityLogs.length === 0 ? (
-            <p className="text-[13px] text-muted px-5 py-4 text-center">No activity yet</p>
-          ) : (
-            <div className="divide-y divide-border">
-              {activityLogs.map((log) => (
-                <div key={log.id} className="flex items-start gap-3 px-5 py-3">
-                  <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${ACTION_COLORS[log.action] || 'bg-bg text-muted'}`}
-                  >
-                    {ACTION_ICONS[log.action] || <Clock className="w-3.5 h-3.5" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] text-foreground">{log.description}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[11px] text-muted">{log.officer.name}</span>
-                      <span className="text-[11px] text-muted">•</span>
-                      <span className="text-[11px] text-muted">
-                        {format(new Date(log.createdAt), 'dd MMM yyyy HH:mm')}
-                      </span>
+      {canViewActivity && (
+        <Card className="mt-6">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <h3>Riwayat Aktivitas</h3>
+            <span className="text-[12px] text-muted">{activityLogs.length} entries</span>
+          </CardHeader>
+          <CardContent className="p-0">
+            {logsLoading ? (
+              <div className="px-5 py-4">
+                <div className="h-20 bg-bg rounded-[4px] animate-pulse" />
+              </div>
+            ) : activityLogs.length === 0 ? (
+              <p className="text-[13px] text-muted px-5 py-4 text-center">No activity yet</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {activityLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-3 px-5 py-3">
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${ACTION_COLORS[log.action] || 'bg-bg text-muted'}`}
+                    >
+                      {ACTION_ICONS[log.action] || <Clock className="w-3.5 h-3.5" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] text-foreground">{log.description}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[11px] text-muted">{log.officer.name}</span>
+                        <span className="text-[11px] text-muted">•</span>
+                        <span className="text-[11px] text-muted">
+                          {format(new Date(log.createdAt), 'dd MMM yyyy HH:mm')}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Riwayat Kunjungan */}
+      {canViewVisits && (
+        <Card className="mt-6">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <h3>Riwayat Kunjungan</h3>
+            <span className="text-[12px] text-muted">{visits.length} kunjungan</span>
+          </CardHeader>
+          <CardContent className="p-0">
+            {visitsLoading ? (
+              <div className="px-5 py-4">
+                <div className="h-16 bg-bg rounded-[4px] animate-pulse" />
+              </div>
+            ) : visits.length === 0 ? (
+              <p className="text-[13px] text-muted px-5 py-4 text-center">Belum ada kunjungan</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {visits.map((v) => (
+                  <div key={v.id} className="flex items-center justify-between px-5 py-3">
+                    <div className="flex items-center gap-2 text-[13px] text-foreground">
+                      <Clock className="w-3.5 h-3.5 text-muted" />
+                      {format(new Date(v.createdAt), 'dd MMM yyyy HH:mm')}
+                    </div>
+                    <span className="text-[11px] text-muted">{v.officer?.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Membership History */}
       <Card className="mt-6">
         <CardHeader>
-          <h3>Membership History</h3>
+          <h3>Riwayat Membership</h3>
         </CardHeader>
         <CardContent className="p-0">
           <DataTable
@@ -684,26 +751,26 @@ export function MemberDetailPage() {
         onConfirm={handleAction}
         title={
           confirmAction?.type === 'deactivate'
-            ? 'Deactivate Member'
+            ? 'Nonaktifkan Member'
             : confirmAction?.type === 'activate'
-              ? 'Activate Member'
-              : 'Confirm Action'
+              ? 'Aktifkan Member'
+              : 'Konfirmasi Aksi'
         }
         description={
           confirmAction?.type === 'deactivate'
-            ? 'This member will be marked as inactive and cannot be verified.'
+            ? 'Member ini akan ditandai tidak aktif dan tidak dapat diverifikasi.'
             : confirmAction?.type === 'activate'
-              ? 'This member will be reactivated and can be verified again.'
-              : `Are you sure you want to ${confirmAction?.type} this membership?`
+              ? 'Member ini akan diaktifkan kembali dan dapat diverifikasi.'
+              : `Yakin ingin melanjutkan aksi ini pada membership?`
         }
         confirmLabel={
           confirmAction?.type === 'deactivate'
-            ? 'Deactivate'
+            ? 'Nonaktifkan'
             : confirmAction?.type === 'activate'
-              ? 'Activate'
+              ? 'Aktifkan'
               : confirmAction?.type === 'cancel'
-                ? 'Yes, Continue'
-                : 'Confirm'
+                ? 'Ya, lanjutkan'
+                : 'Ya'
         }
         variant={
           confirmAction?.type === 'cancel' || confirmAction?.type === 'deactivate'

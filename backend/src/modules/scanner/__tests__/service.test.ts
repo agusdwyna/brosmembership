@@ -33,6 +33,7 @@ const mockMember = {
   nik: null,
   qrHash: 'tok_xxx',
   fullName: 'Agus',
+  status: 'ACTIVE',
 };
 const mockTemplate = {
   id: 't1',
@@ -54,7 +55,7 @@ function makeMembership(overrides: Record<string, any> = {}) {
     status: 'ACTIVE',
     startDate: new Date('2025-01-01'),
     endDate: new Date('2099-12-31'),
-    membershipType: { id: 'mt1', name: 'Gold' },
+    membershipType: { id: 'mt1', name: 'Gold', status: 'ACTIVE' },
     cards: [
       {
         id: 'c1',
@@ -70,6 +71,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   (prisma.member.findUnique as any).mockResolvedValue(mockMember);
   (prisma.membership.findFirst as any).mockResolvedValue(makeMembership());
+  // recordScan now returns the created row's id (used to link a follow-up visit).
+  (prisma.scanHistory.create as any).mockResolvedValue({ id: 'scan-1' });
 });
 
 describe('ScannerService.verify', () => {
@@ -130,6 +133,26 @@ describe('ScannerService.verify', () => {
     );
   });
 
+  it('returns INACTIVE when the member is deactivated', async () => {
+    (prisma.member.findUnique as any).mockResolvedValue({ ...mockMember, status: 'INACTIVE' });
+
+    const result = await service.verify({ token: 'tok_xxx', scannerMethod: 'MANUAL' }, 'officer1');
+
+    expect(result.result).toBe('INACTIVE');
+    expect(result.reason).toBe('Member tidak aktif');
+  });
+
+  it('returns INACTIVE when the membership type is inactive', async () => {
+    (prisma.membership.findFirst as any).mockResolvedValue(
+      makeMembership({ membershipType: { id: 'mt1', name: 'Gold', status: 'INACTIVE' } }),
+    );
+
+    const result = await service.verify({ token: 'tok_xxx', scannerMethod: 'MANUAL' }, 'officer1');
+
+    expect(result.result).toBe('INACTIVE');
+    expect(result.reason).toBe('Tipe membership tidak aktif');
+  });
+
   it('returns VALID when membership is active and not expired', async () => {
     const result = await service.verify({ token: 'tok_xxx', scannerMethod: 'MANUAL' }, 'officer1');
 
@@ -137,6 +160,7 @@ describe('ScannerService.verify', () => {
     expect(result.member?.fullName).toBe('Agus');
     expect(result.membership?.typeName).toBe('Gold');
     expect(result.card?.template?.name).toBe('Default');
+    expect(result.scanId).toBe('scan-1');
   });
 
   it('records scan history for every verification', async () => {

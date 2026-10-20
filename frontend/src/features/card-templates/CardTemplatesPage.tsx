@@ -48,14 +48,14 @@ export function CardTemplatesPage() {
     try {
       if (toggleTarget.status === 'ACTIVE') {
         await cardTemplatesApi.deactivate(toggleTarget.id);
-        toast.success('Card template deactivated');
+        toast.success('Template kartu dinonaktifkan');
       } else {
         await cardTemplatesApi.activate(toggleTarget.id);
-        toast.success('Card template activated');
+        toast.success('Template kartu diaktifkan');
       }
       await load();
     } catch {
-      toast.error('Failed to update status');
+      toast.error('Gagal mengubah status');
     } finally {
       setToggleLoading(false);
       setToggleTarget(null);
@@ -69,15 +69,15 @@ export function CardTemplatesPage() {
   const columns = [
     {
       key: 'name',
-      header: 'Name',
+      header: 'Nama',
       render: (t: CardTemplate) => <span className="font-medium">{t.name}</span>,
     },
     {
       key: 'sides',
-      header: 'Sides',
+      header: 'Sisi',
       render: (t: CardTemplate) => (
         <span className="text-secondary">
-          {t.sides.length} sides, {t.sides.reduce((a, s) => a + s.elements.length, 0)} elements
+          {t.sides.length} sisi, {t.sides.reduce((a, s) => a + s.elements.length, 0)} elemen
         </span>
       ),
     },
@@ -88,7 +88,7 @@ export function CardTemplatesPage() {
     },
     {
       key: 'created',
-      header: 'Created',
+      header: 'Dibuat',
       render: (t: CardTemplate) => (
         <span className="text-secondary">{format(new Date(t.createdAt), 'dd MMM yyyy')}</span>
       ),
@@ -102,7 +102,7 @@ export function CardTemplatesPage() {
           actions={[
             {
               key: 'edit',
-              label: 'Edit template',
+              label: 'Ubah template',
               variant: 'brand',
               onClick: () => navigate(`/card-templates/${t.id}/edit`),
             },
@@ -121,28 +121,28 @@ export function CardTemplatesPage() {
   return (
     <div>
       <PageHeader
-        title="Card Templates"
-        description="Manage card template designs"
+        title="Template Kartu"
+        description="Kelola desain template kartu"
         action={
           <Button onClick={() => navigate('/card-templates/new/edit')}>
-            <Plus className="w-4 h-4" /> Add Template
+            <Plus className="w-4 h-4" /> Tambah Template
           </Button>
         }
       />
       <Card>
         <TableToolbar>
-          <SearchInput value={search} onChange={setSearch} placeholder="Search templates..." />
+          <SearchInput value={search} onChange={setSearch} placeholder="Cari template..." />
         </TableToolbar>
         <ListCapNotice meta={meta} />
         <DataTable
           columns={columns}
           data={filteredTemplates}
           loading={loading}
-          emptyTitle="No templates yet"
-          emptyDescription="Create your first card template"
+          emptyTitle="Belum ada template"
+          emptyDescription="Buat template kartu pertama"
           emptyAction={
             <Button onClick={() => navigate('/card-templates/new/edit')}>
-              <Plus className="w-4 h-4" /> Add Template
+              <Plus className="w-4 h-4" /> Tambah Template
             </Button>
           }
           getRowId={(t) => t.id}
@@ -154,14 +154,16 @@ export function CardTemplatesPage() {
         onClose={() => setToggleTarget(null)}
         onConfirm={handleToggleStatus}
         title={
-          toggleTarget?.status === 'ACTIVE' ? 'Deactivate Card Template' : 'Activate Card Template'
+          toggleTarget?.status === 'ACTIVE'
+            ? 'Nonaktifkan Template Kartu'
+            : 'Aktifkan Template Kartu'
         }
         description={
           toggleTarget?.status === 'ACTIVE'
             ? `${toggleTarget.name} akan ditandai tidak aktif dan tidak dapat dipilih untuk membership baru.`
             : `${toggleTarget?.name ?? 'Template'} akan diaktifkan kembali dan dapat digunakan lagi.`
         }
-        confirmLabel={toggleTarget?.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+        confirmLabel={toggleTarget?.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan'}
         variant={toggleTarget?.status === 'ACTIVE' ? 'danger' : 'primary'}
         loading={toggleLoading}
       />

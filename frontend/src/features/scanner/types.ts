@@ -1,10 +1,12 @@
 export type ScannerMethod = 'MANUAL' | 'PHYSICAL_READER' | 'CAMERA';
 
-export type VerifyResult = 'VALID' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED' | 'NOT_FOUND';
+export type VerifyResult =
+  'VALID' | 'EXPIRED' | 'SUSPENDED' | 'CANCELLED' | 'INACTIVE' | 'NOT_FOUND';
 
 export interface VerifyResponse {
   result: VerifyResult;
   reason?: string;
+  scanId?: string;
   member?: {
     id: string;
     memberNumber: string;

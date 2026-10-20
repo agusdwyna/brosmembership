@@ -15,12 +15,15 @@ import { Select } from '@/components/ui/Select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from '@/components/ui/toast-store';
 import { exportCardsToPDF } from '@/lib/pdf-export';
+import { useCan } from '@/lib/use-permission';
 import { Plus, FileDown, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { MembershipCard } from '@/features/cards/types';
 
 export function MembersPage() {
   const navigate = useNavigate();
+  const canCreate = useCan('member.create');
+  const canManage = useCan('member.manage');
   const [members, setMembers] = useState<Member[]>([]);
   const [meta, setMeta] = useState<ListMeta>();
   const [search, setSearch] = useState('');
@@ -62,10 +65,10 @@ export function MembersPage() {
     try {
       if (toggleTarget.status === 'ACTIVE') {
         await membersApi.deactivate(toggleTarget.id);
-        toast.success('Member deactivated');
+        toast.success('Member dinonaktifkan');
       } else {
         await membersApi.activate(toggleTarget.id);
-        toast.success('Member activated');
+        toast.success('Member diaktifkan');
       }
       await loadMembers();
     } catch {
@@ -156,7 +159,7 @@ export function MembersPage() {
     },
     {
       key: 'company',
-      header: 'Company',
+      header: 'Perusahaan',
       render: (m: Member) => <span className="text-secondary">{m.company?.name || '-'}</span>,
     },
     {
@@ -168,7 +171,7 @@ export function MembersPage() {
           <div>
             <div>{ms.membershipType.name}</div>
             <div className="text-[12px] text-muted">
-              until {format(new Date(ms.endDate), 'dd MMM yyyy')}
+              s/d {format(new Date(ms.endDate), 'dd MMM yyyy')}
             </div>
           </div>
         ) : (
@@ -183,7 +186,7 @@ export function MembersPage() {
     },
     {
       key: 'created',
-      header: 'Registered',
+      header: 'Terdaftar',
       render: (m: Member) => (
         <span className="text-secondary">{format(new Date(m.createdAt), 'dd MMM yyyy')}</span>
       ),
@@ -197,7 +200,7 @@ export function MembersPage() {
           actions={[
             {
               key: 'detail',
-              label: 'Detail & edit',
+              label: 'Detail & ubah',
               variant: 'brand',
               onClick: () => navigate(`/members/${m.id}`),
             },
@@ -205,6 +208,7 @@ export function MembersPage() {
               key: 'toggle',
               label: m.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan',
               variant: m.status === 'ACTIVE' ? 'danger' : 'default',
+              disabled: !canManage,
               onClick: () => setToggleTarget(m),
             },
           ]}
@@ -216,16 +220,16 @@ export function MembersPage() {
   return (
     <div>
       <PageHeader
-        title="Members"
-        description="Manage registered membership participants"
+        title="Member"
+        description="Kelola data member terdaftar"
         action={
           <div className="flex gap-2">
             {selectedIds.length > 0 && (
               <Button variant="secondary" onClick={handleExportPDF} disabled={exporting}>
                 {exporting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Exporting {exportProgress.current}/
-                    {exportProgress.total}
+                    <Loader2 className="w-4 h-4 animate-spin" /> Mengekspor {exportProgress.current}
+                    /{exportProgress.total}
                   </>
                 ) : (
                   <>
@@ -234,9 +238,11 @@ export function MembersPage() {
                 )}
               </Button>
             )}
-            <Button onClick={() => navigate('/members/create')}>
-              <Plus className="w-4 h-4" /> Add Member
-            </Button>
+            {canCreate && (
+              <Button onClick={() => navigate('/members/create')}>
+                <Plus className="w-4 h-4" /> Tambah Member
+              </Button>
+            )}
           </div>
         }
       />
@@ -246,15 +252,15 @@ export function MembersPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Search members..."
+            placeholder="Cari member..."
             onSubmit={() => loadMembers(search)}
           />
           <div className="w-40">
             <Select
               options={[
-                { value: '', label: 'All Status' },
-                { value: 'ACTIVE', label: 'Active' },
-                { value: 'INACTIVE', label: 'Inactive' },
+                { value: '', label: 'Semua Status' },
+                { value: 'ACTIVE', label: 'Aktif' },
+                { value: 'INACTIVE', label: 'Nonaktif' },
               ]}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -266,11 +272,11 @@ export function MembersPage() {
           columns={columns}
           data={filteredMembers}
           loading={loading}
-          emptyTitle="No members yet"
-          emptyDescription="Create your first member to get started"
+          emptyTitle="Belum ada member"
+          emptyDescription="Tambahkan member pertama untuk memulai"
           emptyAction={
             <Button onClick={() => navigate('/members/create')}>
-              <Plus className="w-4 h-4" /> Add Member
+              <Plus className="w-4 h-4" /> Tambah Member
             </Button>
           }
           getRowId={(m) => m.id}
@@ -284,13 +290,13 @@ export function MembersPage() {
         open={!!toggleTarget}
         onClose={() => setToggleTarget(null)}
         onConfirm={handleToggleStatus}
-        title={toggleTarget?.status === 'ACTIVE' ? 'Deactivate Member' : 'Activate Member'}
+        title={toggleTarget?.status === 'ACTIVE' ? 'Nonaktifkan Member' : 'Aktifkan Member'}
         description={
           toggleTarget?.status === 'ACTIVE'
             ? `${toggleTarget.fullName} akan ditandai tidak aktif dan tidak dapat diverifikasi.`
             : `${toggleTarget?.fullName ?? 'Member'} akan diaktifkan kembali dan dapat diverifikasi.`
         }
-        confirmLabel={toggleTarget?.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+        confirmLabel={toggleTarget?.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan'}
         variant={toggleTarget?.status === 'ACTIVE' ? 'danger' : 'primary'}
         loading={toggleLoading}
       />

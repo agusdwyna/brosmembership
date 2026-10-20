@@ -178,7 +178,7 @@ export function ReportsPage() {
 
   return (
     <div>
-      <PageHeader title="Reports" description="Verification analytics and activity reports" />
+      <PageHeader title="Laporan" description="Analitik verifikasi dan laporan aktivitas" />
 
       {/* Filter — simple preset buttons */}
       <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6">
@@ -246,7 +246,7 @@ export function ReportsPage() {
                     <BarChart3 className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-brand" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] sm:text-[12px] text-muted">Total Scans</p>
+                    <p className="text-[11px] sm:text-[12px] text-muted">Total Scan</p>
                     <p className="text-[18px] sm:text-[20px] font-semibold">{report.totalScans}</p>
                   </div>
                 </div>
@@ -259,7 +259,7 @@ export function ReportsPage() {
                     <CheckCircle2 className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-success" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] sm:text-[12px] text-muted">Successful</p>
+                    <p className="text-[11px] sm:text-[12px] text-muted">Berhasil</p>
                     <p className="text-[18px] sm:text-[20px] font-semibold text-success">
                       {report.successful}
                     </p>
@@ -419,7 +419,7 @@ export function ReportsPage() {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search by member, card, officer..."
+                placeholder="Cari member, kartu, petugas..."
               />
             </TableToolbar>
             <DataTable

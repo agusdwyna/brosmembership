@@ -2,8 +2,8 @@ import { prisma } from '../../config/database';
 import type { CreateMemberInput, UpdateMemberInput } from './schema';
 import { createHash } from 'crypto';
 import { activityLogService } from '../activity-log/service';
-import { settingsService } from '../settings/service';
 import { LIST_LIMIT } from '../../lib/query';
+import { generateCardNumber, generateMemberNumber, retryOnUnique } from '../../lib/numbering';
 
 function generateQrHash(nik: string, memberNumber: string): string {
   return createHash('sha256').update(`${nik}${memberNumber}`).digest('hex');
@@ -92,12 +92,7 @@ class MemberService {
   }
 
   async create(input: CreateMemberInput, performedBy: string) {
-    const memberNumber = await this.generateMemberNumber();
-    const qrHash = generateQrHash(input.nik, memberNumber);
-    const endDate = new Date(input.startDate);
-    endDate.setDate(endDate.getDate() + (await this.getTypeDuration(input.membershipTypeId)));
-
-    // Get default card template
+    // Read-only lookups first: membership type + the template to print.
     const membershipType = await prisma.membershipType.findUnique({
       where: { id: input.membershipTypeId },
       include: { defaultCardTemplate: true },
@@ -130,50 +125,59 @@ class MemberService {
       cardTemplateId = fallbackTemplate.id;
     }
 
-    const cardNumber = await this.generateCardNumber();
+    const endDate = new Date(input.startDate);
+    endDate.setDate(endDate.getDate() + membershipType.duration);
 
-    // Transaction: Member → Membership → Card
-    const result = await prisma.$transaction(async (tx) => {
-      const member = await tx.member.create({
-        data: {
-          memberNumber,
-          nik: input.nik,
-          qrHash,
-          fullName: input.fullName,
-          phone: input.phone,
-          email: input.email || null,
-          photo: input.photo,
-          address: input.address,
-          dateOfBirth: input.dateOfBirth || null,
-          companyId: input.companyId || null,
-        },
-      });
+    // Numbers are derived from a row count, so generate them INSIDE the
+    // transaction and retry the whole write if a unique constraint trips — two
+    // concurrent registrations can otherwise pick the same number.
+    const result = await retryOnUnique(() =>
+      prisma.$transaction(async (tx) => {
+        const memberNumber = await generateMemberNumber(tx);
+        const cardNumber = await generateCardNumber(tx);
+        const qrHash = generateQrHash(input.nik, memberNumber);
 
-      const membership = await tx.membership.create({
-        data: {
-          memberId: member.id,
-          membershipTypeId: input.membershipTypeId,
-          startDate: input.startDate,
-          endDate,
-        },
-      });
+        const member = await tx.member.create({
+          data: {
+            memberNumber,
+            nik: input.nik,
+            qrHash,
+            fullName: input.fullName,
+            phone: input.phone,
+            email: input.email || null,
+            photo: input.photo,
+            address: input.address,
+            dateOfBirth: input.dateOfBirth || null,
+            companyId: input.companyId || null,
+          },
+        });
 
-      const card = await tx.membershipCard.create({
-        data: {
-          membershipId: membership.id,
-          cardNumber,
-          cardTemplateId,
-        },
-      });
+        const membership = await tx.membership.create({
+          data: {
+            memberId: member.id,
+            membershipTypeId: input.membershipTypeId,
+            startDate: input.startDate,
+            endDate,
+          },
+        });
 
-      return { member, membership, card };
-    });
+        const card = await tx.membershipCard.create({
+          data: {
+            membershipId: membership.id,
+            cardNumber,
+            cardTemplateId,
+          },
+        });
+
+        return { member, membership, card };
+      }),
+    );
 
     // Log activity
     await activityLogService.log({
       memberId: result.member.id,
       action: 'ASSIGN',
-      description: `Member ${memberNumber} registered with ${membershipType.name} membership`,
+      description: `Member ${result.member.memberNumber} registered with ${membershipType.name} membership`,
       newValue: membershipType.name,
       performedBy,
     });
@@ -219,62 +223,6 @@ class MemberService {
       where: { id },
       data: { status: 'ACTIVE' },
     });
-  }
-
-  private async generateMemberNumber(): Promise<string> {
-    const now = new Date();
-    const customPrefix = await settingsService.getString('memberNumberPrefix');
-    const reset = await settingsService.getString('memberNumberReset');
-
-    // Legacy default keeps the YYMM segment for a monthly-scoped sequence.
-    const yy = String(now.getFullYear()).slice(-2);
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const datePart = reset === 'MONTHLY' ? `${yy}${mm}` : reset === 'YEARLY' ? yy : '';
-    const prefix = `${customPrefix}${datePart}`;
-
-    let start: Date | undefined;
-    let end: Date | undefined;
-    if (reset === 'MONTHLY') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    } else if (reset === 'YEARLY') {
-      start = new Date(now.getFullYear(), 0, 1);
-      end = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-    }
-
-    const count = await prisma.member.count({
-      where: start && end ? { createdAt: { gte: start, lte: end } } : undefined,
-    });
-
-    return `${prefix}${String(count + 1).padStart(6, '0')}`;
-  }
-
-  private async generateCardNumber(): Promise<string> {
-    const prefix = await settingsService.getString('cardNumberPrefix');
-    const reset = await settingsService.getString('cardNumberReset');
-
-    const now = new Date();
-    let start: Date | undefined;
-    let end: Date | undefined;
-    if (reset === 'MONTHLY') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    } else if (reset === 'YEARLY') {
-      start = new Date(now.getFullYear(), 0, 1);
-      end = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-    }
-
-    const count = await prisma.membershipCard.count({
-      where: start && end ? { createdAt: { gte: start, lte: end } } : undefined,
-    });
-
-    return `${prefix}${String(count + 1).padStart(6, '0')}`;
-  }
-
-  private async getTypeDuration(typeId: string): Promise<number> {
-    const type = await prisma.membershipType.findUnique({ where: { id: typeId } });
-    if (!type) throw Object.assign(new Error('Membership type tidak ditemukan'), { status: 404 });
-    return type.duration;
   }
 }
 

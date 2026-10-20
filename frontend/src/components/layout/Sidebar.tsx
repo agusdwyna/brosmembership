@@ -9,36 +9,59 @@ import {
   Settings,
   Layers,
   ListChecks,
+  CreditCard,
+  CalendarCheck,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSidebarStore } from '@/stores/sidebar-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { BrandLogos } from '@/components/shared/BrandLogos';
+import type { LucideIcon } from 'lucide-react';
 
-const navSections = [
+interface NavItem {
+  to: string;
+  icon: LucideIcon;
+  label: string;
+  permission?: string;
+}
+
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
   {
     label: 'OVERVIEW',
-    items: [{ to: '/', icon: LayoutDashboard, label: 'Dashboard' }],
+    items: [{ to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'dashboard.view' }],
   },
   {
     label: 'VERIFICATION',
     items: [
-      { to: '/scanner', icon: ScanLine, label: 'Scanner' },
-      { to: '/scan-history', icon: History, label: 'Scan History' },
+      { to: '/scanner', icon: ScanLine, label: 'Scanner', permission: 'scan.perform' },
+      { to: '/visits', icon: CalendarCheck, label: 'Kunjungan', permission: 'visit.view' },
+      { to: '/scan-history', icon: History, label: 'Scan History', permission: 'scanHistory.view' },
     ],
   },
   {
     label: 'MEMBERSHIP',
     items: [
-      { to: '/members', icon: Users, label: 'Members' },
-      { to: '/companies', icon: Building2, label: 'Companies' },
-      { to: '/membership-types', icon: ListChecks, label: 'Memberships' },
-      { to: '/card-templates', icon: Layers, label: 'Templates' },
+      { to: '/members', icon: Users, label: 'Members', permission: 'member.view' },
+      { to: '/companies', icon: Building2, label: 'Companies', permission: 'company.view' },
+      {
+        to: '/membership-types',
+        icon: ListChecks,
+        label: 'Memberships',
+        permission: 'membershipType.view',
+      },
+      { to: '/card-templates', icon: Layers, label: 'Templates', permission: 'cardTemplate.view' },
+      { to: '/cards', icon: CreditCard, label: 'Kartu', permission: 'card.view' },
     ],
   },
   {
     label: 'INSIGHTS',
-    items: [{ to: '/reports', icon: FileText, label: 'Reports' }],
+    items: [{ to: '/reports', icon: FileText, label: 'Reports', permission: 'report.view' }],
   },
   {
     label: 'SYSTEM',
@@ -48,6 +71,17 @@ const navSections = [
 
 function NavContent() {
   const close = useSidebarStore((s) => s.close);
+  const userPermissions = useAuthStore((s) => s.user?.permissions);
+  const permissions = userPermissions ?? [];
+
+  const visibleSections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.permission || permissions.includes(item.permission),
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <>
@@ -62,7 +96,7 @@ function NavContent() {
       </div>
 
       <nav className="flex-1 py-3 overflow-y-auto">
-        {navSections.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.label} className="mb-1">
             <div className="px-4 py-2 text-[10px] font-medium text-white/30 uppercase tracking-widest">
               {section.label}

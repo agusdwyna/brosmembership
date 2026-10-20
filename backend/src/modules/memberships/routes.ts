@@ -1,24 +1,25 @@
 import { Router } from 'express';
 import { membershipController } from './controller';
 import { validate } from '../../middlewares/validate';
-import { requireRole } from '../../middlewares/auth';
+import { requirePermission } from '../../middlewares/auth';
 import { renewMembershipSchema, changeTypeSchema } from './schema';
 
 const router = Router();
 
-// Membership lifecycle changes are admin-only; officers only read.
-const adminOnly = requireRole('ADMIN');
+// Membership lifecycle changes require membership.manage; view is a separate grant.
+const canView = requirePermission('membership.view');
+const canManage = requirePermission('membership.manage');
 
-router.get('/', membershipController.list);
-router.get('/:id', membershipController.getById);
+router.get('/', canView, membershipController.list);
+router.get('/:id', canView, membershipController.getById);
 router.post(
   '/:id/change-type',
-  adminOnly,
+  canManage,
   validate(changeTypeSchema),
   membershipController.changeType,
 );
-router.post('/:id/renew', adminOnly, validate(renewMembershipSchema), membershipController.renew);
-router.post('/:id/suspend', adminOnly, membershipController.suspend);
-router.post('/:id/cancel', adminOnly, membershipController.cancel);
+router.post('/:id/renew', canManage, validate(renewMembershipSchema), membershipController.renew);
+router.post('/:id/suspend', canManage, membershipController.suspend);
+router.post('/:id/cancel', canManage, membershipController.cancel);
 
 export { router as membershipRoutes };

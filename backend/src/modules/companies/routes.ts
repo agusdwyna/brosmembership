@@ -1,19 +1,22 @@
 import { Router } from 'express';
 import { companyController } from './controller';
 import { validate } from '../../middlewares/validate';
-import { requireRole } from '../../middlewares/auth';
+import { requirePermission } from '../../middlewares/auth';
 import { createCompanySchema, updateCompanySchema } from './schema';
 
 const router = Router();
 
-// Company master data is admin-only; officers only read it.
-const adminOnly = requireRole('ADMIN');
+// Company master data: everyone with view reads it; create/edit/manage are separate grants.
+const canView = requirePermission('company.view');
+const canCreate = requirePermission('company.create');
+const canEdit = requirePermission('company.edit');
+const canManage = requirePermission('company.manage');
 
-router.get('/', companyController.list);
-router.get('/:id', companyController.getById);
-router.post('/', adminOnly, validate(createCompanySchema), companyController.create);
-router.put('/:id', adminOnly, validate(updateCompanySchema), companyController.update);
-router.post('/:id/deactivate', adminOnly, companyController.deactivate);
-router.post('/:id/activate', adminOnly, companyController.activate);
+router.get('/', canView, companyController.list);
+router.get('/:id', canView, companyController.getById);
+router.post('/', canCreate, validate(createCompanySchema), companyController.create);
+router.put('/:id', canEdit, validate(updateCompanySchema), companyController.update);
+router.post('/:id/deactivate', canManage, companyController.deactivate);
+router.post('/:id/activate', canManage, companyController.activate);
 
 export { router as companyRoutes };

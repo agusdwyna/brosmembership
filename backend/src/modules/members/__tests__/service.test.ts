@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const txMock = {
-  member: { create: vi.fn() },
+  member: { create: vi.fn(), count: vi.fn() },
   membership: { create: vi.fn() },
-  membershipCard: { create: vi.fn() },
+  membershipCard: { create: vi.fn(), count: vi.fn() },
 };
 
 vi.mock('../../../config/database', () => ({
@@ -41,8 +41,11 @@ const baseInput = {
 function primeHappyPath() {
   (prisma.member.count as any).mockResolvedValue(0);
   (prisma.membershipCard.count as any).mockResolvedValue(0);
+  // Numbering now runs inside the transaction (tx.member/tx.membershipCard).
+  (txMock.member.count as any).mockResolvedValue(0);
+  (txMock.membershipCard.count as any).mockResolvedValue(0);
   (prisma.member.findUnique as any).mockResolvedValue({ id: 'm1' });
-  (txMock.member.create as any).mockResolvedValue({ id: 'm1' });
+  (txMock.member.create as any).mockResolvedValue({ id: 'm1', memberNumber: 'M-000001' });
   (txMock.membership.create as any).mockResolvedValue({ id: 'ms1' });
   (txMock.membershipCard.create as any).mockResolvedValue({ id: 'c1' });
 }

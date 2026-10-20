@@ -18,7 +18,7 @@ export function ConfirmDialog({
   onConfirm,
   title,
   description,
-  confirmLabel = 'Confirm',
+  confirmLabel = 'Ya',
   variant = 'primary',
   loading,
 }: ConfirmDialogProps) {
@@ -27,7 +27,7 @@ export function ConfirmDialog({
       <p className="text-[14px] text-secondary">{description}</p>
       <div className="flex justify-end gap-3 mt-6">
         <Button variant="secondary" onClick={onClose} disabled={loading}>
-          Cancel
+          Batal
         </Button>
         <Button variant={variant} onClick={onConfirm} loading={loading}>
           {confirmLabel}

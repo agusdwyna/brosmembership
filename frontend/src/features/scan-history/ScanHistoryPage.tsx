@@ -64,26 +64,26 @@ export function ScanHistoryPage() {
     },
     {
       key: 'result',
-      header: 'Result',
+      header: 'Hasil',
       render: (i: ScanHistoryItem) => <StatusBadge status={i.result} />,
     },
     {
       key: 'method',
-      header: 'Method',
+      header: 'Metode',
       render: (i: ScanHistoryItem) => (
         <span className="text-secondary">{i.scannerMethod.replace('_', ' ')}</span>
       ),
     },
     {
       key: 'time',
-      header: 'Time',
+      header: 'Waktu',
       render: (i: ScanHistoryItem) => (
         <span className="text-secondary">{format(new Date(i.createdAt), 'dd MMM yyyy HH:mm')}</span>
       ),
     },
     {
       key: 'officer',
-      header: 'Officer',
+      header: 'Petugas',
       render: (i: ScanHistoryItem) => <span className="text-secondary">{i.officer.name}</span>,
     },
     {
@@ -108,24 +108,25 @@ export function ScanHistoryPage() {
 
   return (
     <div>
-      <PageHeader title="Scan History" description="Verification activity log" />
+      <PageHeader title="Riwayat Scan" description="Log aktivitas verifikasi" />
 
       <Card>
         <TableToolbar>
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Search by member, NIK, officer..."
+            placeholder="Cari member, NIK, petugas..."
           />
           <div className="w-40">
             <Select
               options={[
-                { value: '', label: 'All Results' },
+                { value: '', label: 'Semua Hasil' },
                 { value: 'VALID', label: 'Valid' },
-                { value: 'EXPIRED', label: 'Expired' },
-                { value: 'SUSPENDED', label: 'Suspended' },
-                { value: 'CANCELLED', label: 'Cancelled' },
-                { value: 'NOT_FOUND', label: 'Not Found' },
+                { value: 'EXPIRED', label: 'Kedaluwarsa' },
+                { value: 'SUSPENDED', label: 'Ditangguhkan' },
+                { value: 'CANCELLED', label: 'Dibatalkan' },
+                { value: 'INACTIVE', label: 'Nonaktif' },
+                { value: 'NOT_FOUND', label: 'Tidak Ditemukan' },
               ]}
               value={resultFilter}
               onChange={(e) => setResultFilter(e.target.value)}
@@ -137,8 +138,8 @@ export function ScanHistoryPage() {
           columns={columns}
           data={filteredItems}
           loading={loading}
-          emptyTitle="No scan history"
-          emptyDescription="Scan results will appear here"
+          emptyTitle="Belum ada riwayat scan"
+          emptyDescription="Hasil scan akan muncul di sini"
           getRowId={(i) => i.id}
         />
       </Card>

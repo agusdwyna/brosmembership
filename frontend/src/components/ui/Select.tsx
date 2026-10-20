@@ -29,7 +29,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             'border-border',
             'focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand',
             'disabled:bg-bg disabled:opacity-50',
-            error && 'border-danger',
+            error && 'border-danger focus:ring-danger/20 focus:border-danger',
             className,
           )}
           {...props}

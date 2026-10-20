@@ -85,7 +85,7 @@ export function CardDetailPage() {
         backTo="/cards"
         action={
           <Button variant="secondary" onClick={handlePrint}>
-            <Printer className="w-4 h-4" /> Print
+            <Printer className="w-4 h-4" /> Cetak
           </Button>
         }
       />

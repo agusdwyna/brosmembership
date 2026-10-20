@@ -201,10 +201,10 @@ export function CardTemplateEditorPage() {
       } else {
         await cardTemplatesApi.activate(templateDbId);
         setTemplateStatus('ACTIVE');
-        toast.success('Template activated');
+        toast.success('Template diaktifkan');
       }
     } catch {
-      toast.error('Failed to update template status');
+      toast.error('Gagal mengubah status template');
     } finally {
       setActionLoading(false);
       setConfirmAction(null);
@@ -256,7 +256,7 @@ export function CardTemplateEditorPage() {
               <>
                 {templateStatus === 'ACTIVE' ? (
                   <Button variant="danger" size="sm" onClick={() => setConfirmAction('deactivate')}>
-                    Deactivate
+                    Nonaktifkan
                   </Button>
                 ) : (
                   <Button
@@ -264,7 +264,7 @@ export function CardTemplateEditorPage() {
                     size="sm"
                     onClick={() => setConfirmAction('activate')}
                   >
-                    Activate
+                    Aktifkan
                   </Button>
                 )}
               </>
@@ -359,13 +359,13 @@ export function CardTemplateEditorPage() {
         open={!!confirmAction}
         onClose={() => setConfirmAction(null)}
         onConfirm={handleToggleStatus}
-        title={confirmAction === 'deactivate' ? 'Deactivate Template' : 'Activate Template'}
+        title={confirmAction === 'deactivate' ? 'Nonaktifkan Template' : 'Aktifkan Template'}
         description={
           confirmAction === 'deactivate'
             ? 'This template will be marked as inactive and cannot be used for new cards.'
             : 'This template will be reactivated and can be used for new cards again.'
         }
-        confirmLabel={confirmAction === 'deactivate' ? 'Deactivate' : 'Activate'}
+        confirmLabel={confirmAction === 'deactivate' ? 'Nonaktifkan' : 'Aktifkan'}
         variant={confirmAction === 'deactivate' ? 'danger' : 'primary'}
         loading={actionLoading}
       />

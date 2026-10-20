@@ -52,14 +52,14 @@ export function CompaniesPage() {
     try {
       if (toggleTarget.status === 'ACTIVE') {
         await companiesApi.deactivate(toggleTarget.id);
-        toast.success('Company deactivated');
+        toast.success('Perusahaan dinonaktifkan');
       } else {
         await companiesApi.activate(toggleTarget.id);
-        toast.success('Company activated');
+        toast.success('Perusahaan diaktifkan');
       }
       await load();
     } catch {
-      toast.error('Failed to update status');
+      toast.error('Gagal mengubah status');
     } finally {
       setToggleLoading(false);
       setToggleTarget(null);
@@ -78,12 +78,12 @@ export function CompaniesPage() {
   const columns = [
     {
       key: 'code',
-      header: 'Code',
+      header: 'Kode',
       render: (c: Company) => <span className="font-mono">{c.code}</span>,
     },
     {
       key: 'name',
-      header: 'Company',
+      header: 'Perusahaan',
       render: (c: Company) => (
         <div>
           <div className="font-medium">{c.name}</div>
@@ -93,7 +93,7 @@ export function CompaniesPage() {
     },
     {
       key: 'contact',
-      header: 'Contact',
+      header: 'Kontak',
       render: (c: Company) => (
         <div className="text-secondary">
           <div>{c.phone || '-'}</div>
@@ -103,7 +103,7 @@ export function CompaniesPage() {
     },
     {
       key: 'members',
-      header: 'Members',
+      header: 'Member',
       render: (c: Company) => <span className="text-secondary">{c._count?.members ?? 0}</span>,
     },
     {
@@ -120,7 +120,7 @@ export function CompaniesPage() {
           actions={[
             {
               key: 'edit',
-              label: 'Edit company',
+              label: 'Ubah perusahaan',
               variant: 'brand',
               onClick: () => navigate(`/companies/${c.id}/edit`),
             },
@@ -139,27 +139,23 @@ export function CompaniesPage() {
   return (
     <div>
       <PageHeader
-        title="Companies"
-        description="Manage member companies"
+        title="Perusahaan"
+        description="Kelola data perusahaan member"
         action={
           <Button onClick={() => navigate('/companies/new')}>
-            <Plus className="w-4 h-4" /> Add Company
+            <Plus className="w-4 h-4" /> Tambah Perusahaan
           </Button>
         }
       />
       <Card>
         <TableToolbar>
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Search by name or code..."
-          />
+          <SearchInput value={search} onChange={setSearch} placeholder="Cari nama atau kode..." />
           <div className="w-40">
             <Select
               options={[
-                { value: '', label: 'All Status' },
-                { value: 'ACTIVE', label: 'Active' },
-                { value: 'INACTIVE', label: 'Inactive' },
+                { value: '', label: 'Semua Status' },
+                { value: 'ACTIVE', label: 'Aktif' },
+                { value: 'INACTIVE', label: 'Nonaktif' },
               ]}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -171,11 +167,11 @@ export function CompaniesPage() {
           columns={columns}
           data={filteredCompanies}
           loading={loading}
-          emptyTitle="No companies"
-          emptyDescription="Create a company to assign members to"
+          emptyTitle="Belum ada perusahaan"
+          emptyDescription="Tambahkan perusahaan untuk menautkan member"
           emptyAction={
             <Button onClick={() => navigate('/companies/new')}>
-              <Plus className="w-4 h-4" /> Add Company
+              <Plus className="w-4 h-4" /> Tambah Perusahaan
             </Button>
           }
           getRowId={(c) => c.id}
@@ -186,13 +182,13 @@ export function CompaniesPage() {
         open={!!toggleTarget}
         onClose={() => setToggleTarget(null)}
         onConfirm={handleToggleStatus}
-        title={toggleTarget?.status === 'ACTIVE' ? 'Deactivate Company' : 'Activate Company'}
+        title={toggleTarget?.status === 'ACTIVE' ? 'Nonaktifkan Perusahaan' : 'Aktifkan Perusahaan'}
         description={
           toggleTarget?.status === 'ACTIVE'
             ? `${toggleTarget.name} akan ditandai tidak aktif dan tidak dapat dipilih untuk member baru.`
             : `${toggleTarget?.name ?? 'Company'} akan diaktifkan kembali dan dapat digunakan lagi.`
         }
-        confirmLabel={toggleTarget?.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+        confirmLabel={toggleTarget?.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan'}
         variant={toggleTarget?.status === 'ACTIVE' ? 'danger' : 'primary'}
         loading={toggleLoading}
       />
@@ -251,14 +247,14 @@ export function CompanyFormPage() {
       if (confirmAction === 'deactivate') {
         await companiesApi.deactivate(id);
         setStatus('INACTIVE');
-        toast.success('Company deactivated');
+        toast.success('Perusahaan dinonaktifkan');
       } else {
         await companiesApi.activate(id);
         setStatus('ACTIVE');
-        toast.success('Company activated');
+        toast.success('Perusahaan diaktifkan');
       }
     } catch {
-      toast.error('Failed to update status');
+      toast.error('Gagal mengubah status');
     } finally {
       setActionLoading(false);
       setConfirmAction(null);
@@ -275,11 +271,11 @@ export function CompanyFormPage() {
     try {
       if (isNew) await companiesApi.create(form);
       else await companiesApi.update(id!, form);
-      toast.success(isNew ? 'Company created' : 'Company updated');
+      toast.success(isNew ? 'Perusahaan dibuat' : 'Perusahaan diperbarui');
       navigate('/companies');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string } } };
-      const msg = axiosErr.response?.data?.error || 'Failed to save company';
+      const msg = axiosErr.response?.data?.error || 'Gagal menyimpan perusahaan';
       setFormError(msg);
       toast.error(msg);
     } finally {
@@ -290,7 +286,7 @@ export function CompanyFormPage() {
   return (
     <div>
       <PageHeader
-        title={isNew ? 'Add Company' : 'Edit Company'}
+        title={isNew ? 'Tambah Perusahaan' : 'Ubah Perusahaan'}
         backTo="/companies"
         action={
           !isNew ? (
@@ -298,11 +294,11 @@ export function CompanyFormPage() {
               <StatusBadge status={status} />
               {status === 'ACTIVE' ? (
                 <Button variant="danger" size="sm" onClick={() => setConfirmAction('deactivate')}>
-                  Deactivate
+                  Nonaktifkan
                 </Button>
               ) : (
                 <Button variant="secondary" size="sm" onClick={() => setConfirmAction('activate')}>
-                  Activate
+                  Aktifkan
                 </Button>
               )}
             </div>
@@ -310,15 +306,15 @@ export function CompanyFormPage() {
         }
       />
 
-      <form onSubmit={handleSave} className="max-w-2xl space-y-6">
+      <form onSubmit={handleSave} className="space-y-6">
         <Card>
           <CardHeader>
-            <h3>Company Information</h3>
+            <h3>Informasi Perusahaan</h3>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
               <Input
-                label="Code"
+                label="Kode"
                 value={form.code}
                 onChange={(e) => handleChange('code', e.target.value)}
                 placeholder="BROS"
@@ -327,7 +323,7 @@ export function CompanyFormPage() {
                 required
               />
               <Input
-                label="Name"
+                label="Nama"
                 value={form.name}
                 onChange={(e) => handleChange('name', e.target.value)}
                 placeholder="Bros Hospital"
@@ -345,7 +341,7 @@ export function CompanyFormPage() {
                 disabled={saving}
               />
               <Input
-                label="Phone"
+                label="Telepon"
                 value={form.phone || ''}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 placeholder="021-xxxxxxx"
@@ -353,10 +349,10 @@ export function CompanyFormPage() {
                 disabled={saving}
               />
               <Input
-                label="Address"
+                label="Alamat"
                 value={form.address || ''}
                 onChange={(e) => handleChange('address', e.target.value)}
-                placeholder="Full address"
+                placeholder="Alamat lengkap"
                 disabled={saving}
                 className="sm:col-span-2"
               />
@@ -381,10 +377,10 @@ export function CompanyFormPage() {
             disabled={saving}
             onClick={() => navigate('/companies')}
           >
-            Cancel
+            Batal
           </Button>
           <Button type="submit" loading={saving}>
-            Save
+            Simpan
           </Button>
         </div>
       </form>
@@ -393,13 +389,13 @@ export function CompanyFormPage() {
         open={!!confirmAction}
         onClose={() => setConfirmAction(null)}
         onConfirm={handleToggleStatus}
-        title={confirmAction === 'deactivate' ? 'Deactivate Company' : 'Activate Company'}
+        title={confirmAction === 'deactivate' ? 'Nonaktifkan Perusahaan' : 'Aktifkan Perusahaan'}
         description={
           confirmAction === 'deactivate'
-            ? 'This company will be marked as inactive and cannot be selected for new members.'
-            : 'This company will be reactivated and can be used for new members again.'
+            ? 'Perusahaan ini akan ditandai tidak aktif dan tidak dapat dipilih untuk member baru.'
+            : 'Perusahaan ini akan diaktifkan kembali dan dapat digunakan untuk member baru.'
         }
-        confirmLabel={confirmAction === 'deactivate' ? 'Deactivate' : 'Activate'}
+        confirmLabel={confirmAction === 'deactivate' ? 'Nonaktifkan' : 'Aktifkan'}
         variant={confirmAction === 'deactivate' ? 'danger' : 'primary'}
         loading={actionLoading}
       />

@@ -8,10 +8,6 @@ export const cardsApi = {
 
   getById: (id: string) => api.get<{ data: MembershipCard }>(`/cards/${id}`),
 
-  revoke: (id: string) => api.post(`/cards/${id}/revoke`),
-
-  replace: (id: string) => api.post<{ data: MembershipCard }>(`/cards/${id}/replace`),
-
   getHistoryByMembership: (membershipId: string) =>
     api.get<{ data: MembershipCard[] }>(`/cards/membership/${membershipId}/history`),
 };

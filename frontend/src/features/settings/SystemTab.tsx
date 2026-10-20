@@ -59,7 +59,7 @@ export function SystemTab() {
 
   if (!info) {
     return (
-      <Card className="max-w-2xl">
+      <Card>
         <CardContent>
           <p className="text-[13px] text-danger">Gagal memuat info sistem.</p>
         </CardContent>
@@ -68,7 +68,7 @@ export function SystemTab() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <h3 className="text-[15px] font-semibold">Info Sistem</h3>

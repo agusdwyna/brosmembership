@@ -5,6 +5,8 @@ interface User {
   email: string;
   name: string;
   role: string;
+  /** Capabilities resolved from the user's role; used to gate UI. */
+  permissions?: string[];
 }
 
 interface AuthState {
@@ -16,23 +18,27 @@ interface AuthState {
   setUser: (user: User) => void;
   logout: () => void;
   loadFromStorage: () => void;
+  hasPermission: (permission: string) => boolean;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
   isAuthenticated: false,
   isLoading: true,
 
   login: (user, accessToken) => {
+    const withPermissions = { ...user, permissions: user.permissions ?? [] };
     localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('user', JSON.stringify(user));
-    set({ user, accessToken, isAuthenticated: true, isLoading: false });
+    localStorage.setItem('user', JSON.stringify(withPermissions));
+    set({ user: withPermissions, accessToken, isAuthenticated: true, isLoading: false });
   },
 
   setUser: (user) => {
-    localStorage.setItem('user', JSON.stringify(user));
-    set({ user });
+    // Profile edits return the user without permissions; keep the ones we know.
+    const merged = { ...user, permissions: user.permissions ?? get().user?.permissions ?? [] };
+    localStorage.setItem('user', JSON.stringify(merged));
+    set({ user: merged });
   },
 
   logout: () => {
@@ -57,4 +63,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ isLoading: false });
     }
   },
+
+  hasPermission: (permission) => (get().user?.permissions ?? []).includes(permission),
 }));

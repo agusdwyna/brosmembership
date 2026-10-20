@@ -2,8 +2,10 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
-import type { LoginInput, RegisterInput, UpdateMeInput } from './schema';
+import type { LoginInput, RegisterInput, UpdateMeInput, ChangePasswordInput } from './schema';
 import type { AuthTokens, AuthUser } from './types';
+import { getRolePermissions } from '../../middlewares/auth';
+import { activityLogService } from '../activity-log/service';
 
 const SALT_ROUNDS = 10;
 
@@ -13,6 +15,9 @@ export class AuthService {
     if (existing) {
       throw Object.assign(new Error('Email sudah terdaftar'), { status: 409 });
     }
+
+    const role = await prisma.role.findUnique({ where: { key: input.role } });
+    if (!role) throw Object.assign(new Error('Role tidak ditemukan'), { status: 400 });
 
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
@@ -41,10 +46,11 @@ export class AuthService {
     }
 
     const tokens = this.generateTokens({ id: user.id, email: user.email, role: user.role });
+    const permissions = await getRolePermissions(user.role);
 
     return {
       ...tokens,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, permissions },
     };
   }
 
@@ -53,7 +59,8 @@ export class AuthService {
     if (!user) {
       throw Object.assign(new Error('User tidak ditemukan'), { status: 404 });
     }
-    return { id: user.id, email: user.email, name: user.name, role: user.role };
+    const permissions = await getRolePermissions(user.role);
+    return { id: user.id, email: user.email, name: user.name, role: user.role, permissions };
   }
 
   async updateMe(userId: string, input: UpdateMeInput): Promise<AuthUser> {
@@ -69,6 +76,24 @@ export class AuthService {
       data: input,
     });
     return { id: user.id, email: user.email, name: user.name, role: user.role };
+  }
+
+  /** Self-service password change: the current password must be supplied. */
+  async changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw Object.assign(new Error('User tidak ditemukan'), { status: 404 });
+
+    const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+    if (!valid) throw Object.assign(new Error('Password lama salah'), { status: 400 });
+
+    const passwordHash = await bcrypt.hash(input.newPassword, SALT_ROUNDS);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    await activityLogService.log({
+      action: 'CHANGE_PASSWORD',
+      description: `Password user ${user.email} diubah`,
+      performedBy: userId,
+    });
   }
 
   generateTokens(payload: { id: string; email: string; role: string }): AuthTokens {

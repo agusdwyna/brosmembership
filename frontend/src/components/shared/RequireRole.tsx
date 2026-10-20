@@ -1,19 +1,23 @@
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store';
 
-interface RequireRoleProps {
-  role: string;
+interface RequirePermissionProps {
+  permission: string;
   children: React.ReactNode;
-  /** Where to send users who lack the role. Defaults to the settings profile tab. */
+  /** Where to send users who lack the permission. Defaults to the profile page. */
   fallback?: string;
 }
 
 /**
- * Client-side role gate for routes. The backend already enforces roles; this
- * only keeps unauthorised UI (and dead routes) out of reach for officers.
+ * Client-side capability gate for routes. The backend enforces the same
+ * permission; this only keeps UI the user can't use out of reach.
  */
-export function RequireRole({ role, children, fallback = '/settings/profile' }: RequireRoleProps) {
-  const userRole = useAuthStore((s) => s.user?.role);
-  if (userRole !== role) return <Navigate to={fallback} replace />;
+export function RequirePermission({
+  permission,
+  children,
+  fallback = '/profile',
+}: RequirePermissionProps) {
+  const allowed = useAuthStore((s) => (s.user?.permissions ?? []).includes(permission));
+  if (!allowed) return <Navigate to={fallback} replace />;
   return <>{children}</>;
 }

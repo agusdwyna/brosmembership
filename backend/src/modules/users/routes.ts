@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { userController } from './controller';
 import { validate } from '../../middlewares/validate';
-import { requireRole } from '../../middlewares/auth';
+import { requirePermission } from '../../middlewares/auth';
 import { createUserSchema, resetPasswordSchema, updateUserSchema } from './schema';
 
 const router = Router();
 
-// User management is admin-only. Applied to the whole router.
-router.use(requireRole('ADMIN'));
+// User management requires the user.manage permission. Applied to the whole router.
+router.use(requirePermission('user.manage'));
 
 router.get('/', userController.list);
 router.post('/', validate(createUserSchema), userController.create);

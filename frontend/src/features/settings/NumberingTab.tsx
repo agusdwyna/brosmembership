@@ -41,7 +41,7 @@ export function NumberingTab() {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <h3 className="text-[15px] font-semibold">Penomoran Member</h3>

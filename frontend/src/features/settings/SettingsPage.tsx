@@ -6,22 +6,23 @@ import { cn } from '@/lib/cn';
 interface Tab {
   to: string;
   label: string;
-  adminOnly?: boolean;
+  permission?: string;
 }
 
 const tabs: Tab[] = [
-  { to: '/settings/profile', label: 'Profil' },
-  { to: '/settings/users', label: 'Pengguna', adminOnly: true },
-  { to: '/settings/branding', label: 'Branding', adminOnly: true },
-  { to: '/settings/numbering', label: 'Penomoran', adminOnly: true },
-  { to: '/settings/policies', label: 'Kebijakan', adminOnly: true },
-  { to: '/settings/activity', label: 'Aktivitas', adminOnly: true },
+  { to: '/settings/users', label: 'Pengguna', permission: 'user.manage' },
+  { to: '/settings/roles', label: 'Peran & Akses', permission: 'role.manage' },
+  { to: '/settings/branding', label: 'Branding', permission: 'settings.manage' },
+  { to: '/settings/numbering', label: 'Penomoran', permission: 'settings.manage' },
+  { to: '/settings/policies', label: 'Kebijakan', permission: 'settings.manage' },
+  { to: '/settings/activity', label: 'Aktivitas', permission: 'activityLog.view' },
   { to: '/settings/system', label: 'Info Sistem' },
 ];
 
 export function SettingsPage() {
-  const role = useAuthStore((s) => s.user?.role);
-  const visibleTabs = tabs.filter((t) => !t.adminOnly || role === 'ADMIN');
+  const userPermissions = useAuthStore((s) => s.user?.permissions);
+  const permissions = userPermissions ?? [];
+  const visibleTabs = tabs.filter((t) => !t.permission || permissions.includes(t.permission));
 
   return (
     <div>
