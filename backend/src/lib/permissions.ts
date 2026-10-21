@@ -6,7 +6,7 @@
  */
 export const PERMISSIONS = {
   dashboard: ['view'],
-  member: ['view', 'create', 'edit', 'manage'],
+  member: ['view', 'create', 'edit', 'manage', 'delete'],
   company: ['view', 'create', 'edit', 'manage'],
   membershipType: ['view', 'create', 'edit', 'manage'],
   membership: ['view', 'manage'],

@@ -14,6 +14,7 @@ import type { ListMeta } from '@/lib/list';
 import { Select } from '@/components/ui/Select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from '@/components/ui/toast-store';
+import { getErrorMessage } from '@/lib/error';
 import { exportCardsToPDF } from '@/lib/pdf-export';
 import { useCan } from '@/lib/use-permission';
 import { Plus, FileDown, FileSpreadsheet, Loader2 } from 'lucide-react';
@@ -24,6 +25,7 @@ export function MembersPage() {
   const navigate = useNavigate();
   const canCreate = useCan('member.create');
   const canManage = useCan('member.manage');
+  const canDelete = useCan('member.delete');
   const [members, setMembers] = useState<Member[]>([]);
   const [meta, setMeta] = useState<ListMeta>();
   const [search, setSearch] = useState('');
@@ -34,10 +36,15 @@ export function MembersPage() {
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
   const [toggleTarget, setToggleTarget] = useState<Member | null>(null);
   const [toggleLoading, setToggleLoading] = useState(false);
+  // Soft delete has its own confirmation and its own "Terhapus" view.
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   useEffect(() => {
     loadMembers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDeleted]);
 
   const filteredMembers = statusFilter ? members.filter((m) => m.status === statusFilter) : members;
 
@@ -49,7 +56,7 @@ export function MembersPage() {
   const loadMembers = async (q?: string) => {
     setLoading(true);
     try {
-      const { data } = await membersApi.list(q);
+      const { data } = await membersApi.list(q, showDeleted);
       setMembers(data.data);
       setMeta(data.meta);
     } catch {
@@ -76,6 +83,31 @@ export function MembersPage() {
     } finally {
       setToggleLoading(false);
       setToggleTarget(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await membersApi.remove(deleteTarget.id);
+      toast.success('Member dihapus');
+      await loadMembers();
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal menghapus member'));
+    } finally {
+      setDeleteLoading(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  const handleRestore = async (member: Member) => {
+    try {
+      await membersApi.restore(member.id);
+      toast.success('Member dipulihkan');
+      await loadMembers();
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal memulihkan member'));
     }
   };
 
@@ -200,13 +232,32 @@ export function MembersPage() {
               variant: 'brand',
               onClick: () => navigate(`/members/${m.id}`),
             },
-            {
-              key: 'toggle',
-              label: m.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan',
-              variant: m.status === 'ACTIVE' ? 'danger' : 'default',
-              disabled: !canManage,
-              onClick: () => setToggleTarget(m),
-            },
+            // Deleted members can only be restored; every other action would
+            // act on a row the operator cannot see in the normal list.
+            showDeleted
+              ? {
+                  key: 'restore',
+                  label: 'Pulihkan',
+                  variant: 'brand',
+                  onClick: () => handleRestore(m),
+                }
+              : {
+                  key: 'toggle',
+                  label: m.status === 'ACTIVE' ? 'Nonaktifkan' : 'Aktifkan',
+                  variant: m.status === 'ACTIVE' ? 'danger' : 'default',
+                  disabled: !canManage,
+                  onClick: () => setToggleTarget(m),
+                },
+            ...(showDeleted || !canDelete
+              ? []
+              : [
+                  {
+                    key: 'delete',
+                    label: 'Hapus',
+                    variant: 'danger' as const,
+                    onClick: () => setDeleteTarget(m),
+                  },
+                ]),
           ]}
         />
       ),
@@ -267,25 +318,51 @@ export function MembersPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             />
           </div>
+          {canDelete && (
+            <label className="flex items-center gap-2 text-[13px] text-secondary cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showDeleted}
+                onChange={(e) => setShowDeleted(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-brand focus:ring-brand/20 cursor-pointer"
+              />
+              Tampilkan yang terhapus
+            </label>
+          )}
         </TableToolbar>
         <ListCapNotice meta={meta} />
         <DataTable
           columns={columns}
           data={filteredMembers}
           loading={loading}
-          emptyTitle="Belum ada member"
-          emptyDescription="Tambahkan member pertama untuk memulai"
+          emptyTitle={showDeleted ? 'Tidak ada member terhapus' : 'Belum ada member'}
+          emptyDescription={
+            showDeleted
+              ? 'Member yang dihapus akan muncul di sini dan bisa dipulihkan.'
+              : 'Tambahkan member pertama untuk memulai'
+          }
           emptyAction={
             <Button onClick={() => navigate('/members/create')}>
               <Plus className="w-4 h-4" /> Tambah Member
             </Button>
           }
           getRowId={(m) => m.id}
-          selectable
+          selectable={!showDeleted}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
         />
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Hapus Member"
+        description={`${deleteTarget?.fullName ?? 'Member'} akan dihapus dan tidak muncul lagi di daftar maupun scanner. Riwayat kunjungan dan scan tetap tersimpan, dan member masih bisa dipulihkan lewat "Tampilkan yang terhapus".`}
+        confirmLabel="Hapus"
+        variant="danger"
+        loading={deleteLoading}
+      />
 
       <ConfirmDialog
         open={!!toggleTarget}

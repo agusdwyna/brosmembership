@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../../config/database', () => ({
   prisma: {
     member: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
     membership: {
       findFirst: vi.fn(),
@@ -70,7 +70,7 @@ function makeMembership(overrides: Record<string, any> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (prisma.member.findUnique as any).mockResolvedValue(mockMember);
+  (prisma.member.findFirst as any).mockResolvedValue(mockMember);
   (prisma.membership.findFirst as any).mockResolvedValue(makeMembership());
   // recordScan now returns the created row's id (used to link a follow-up visit).
   (prisma.scanHistory.create as any).mockResolvedValue({ id: 'scan-1' });
@@ -78,7 +78,7 @@ beforeEach(() => {
 
 describe('ScannerService.verify', () => {
   it('returns NOT_FOUND when member does not exist', async () => {
-    (prisma.member.findUnique as any).mockResolvedValue(null);
+    (prisma.member.findFirst as any).mockResolvedValue(null);
 
     const result = await service.verify({ token: 'unknown', scannerMethod: 'MANUAL' }, 'officer1');
 
@@ -135,7 +135,7 @@ describe('ScannerService.verify', () => {
   });
 
   it('returns INACTIVE when the member is deactivated', async () => {
-    (prisma.member.findUnique as any).mockResolvedValue({ ...mockMember, status: 'INACTIVE' });
+    (prisma.member.findFirst as any).mockResolvedValue({ ...mockMember, status: 'INACTIVE' });
 
     const result = await service.verify({ token: 'tok_xxx', scannerMethod: 'MANUAL' }, 'officer1');
 
@@ -165,7 +165,7 @@ describe('ScannerService.verify', () => {
   });
 
   it('records scan history for every verification', async () => {
-    (prisma.member.findUnique as any).mockResolvedValue(null);
+    (prisma.member.findFirst as any).mockResolvedValue(null);
 
     await service.verify({ token: 'tok', scannerMethod: 'MANUAL' }, 'officer1');
 
@@ -185,22 +185,22 @@ describe('ScannerService.verify', () => {
 
     // qrHash is tried first; when it misses the token flow continues in
     // findMember, so asserting the call shape here documents the order.
-    expect(prisma.member.findUnique).toHaveBeenCalledWith({
-      where: { qrHash: 'MB-001' },
+    expect(prisma.member.findFirst).toHaveBeenCalledWith({
+      where: { qrHash: 'MB-001', deletedAt: null },
     });
   });
 
   it('resolves a typed NIK through its HMAC, never the plaintext', async () => {
     // Earlier lookups miss so the NIK branch runs.
-    (prisma.member.findUnique as any)
+    (prisma.member.findFirst as any)
       .mockResolvedValueOnce(null) // qrHash
       .mockResolvedValueOnce(null) // memberNumber
       .mockResolvedValueOnce(mockMember); // nikHash
 
     await service.verify({ token: '3201234567890123', scannerMethod: 'MANUAL' }, 'officer1');
 
-    expect(prisma.member.findUnique).toHaveBeenLastCalledWith({
-      where: { nikHash: hashNik('3201234567890123') },
+    expect(prisma.member.findFirst).toHaveBeenLastCalledWith({
+      where: { nikHash: hashNik('3201234567890123'), deletedAt: null },
     });
   });
 

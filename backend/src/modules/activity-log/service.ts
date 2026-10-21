@@ -8,6 +8,8 @@ export type ActivityAction =
   | 'SUSPEND'
   | 'CANCEL'
   | 'REVOKE'
+  | 'DELETE_MEMBER'
+  | 'RESTORE_MEMBER'
   | 'REPLACE'
   | 'CREATE_USER'
   | 'UPDATE_USER'

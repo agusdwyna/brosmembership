@@ -21,7 +21,11 @@ const MANAGE: PermissionAction = { key: 'manage', label: 'Kelola' };
 
 export const PERMISSION_CATALOG: PermissionModule[] = [
   { module: 'dashboard', label: 'Dashboard', actions: [VIEW] },
-  { module: 'member', label: 'Member', actions: [VIEW, CREATE, EDIT, MANAGE] },
+  {
+    module: 'member',
+    label: 'Member',
+    actions: [VIEW, CREATE, EDIT, MANAGE, { key: 'delete', label: 'Hapus' }],
+  },
   { module: 'company', label: 'Perusahaan', actions: [VIEW, CREATE, EDIT, MANAGE] },
   {
     module: 'membershipType',

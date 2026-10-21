@@ -30,9 +30,15 @@ function normalizeCompanyId<T extends { companyId?: string }>(
 }
 
 class MemberService {
-  async list(search?: string) {
+  /**
+   * @param deleted When true, list only soft-deleted members instead of active
+   *   ones — the "Terhapus" filter, which is how a member is restored.
+   */
+  async list(search?: string, deleted = false) {
+    const deletedFilter = deleted ? { not: null } : null;
     const where = search
       ? {
+          deletedAt: deletedFilter,
           OR: [
             { fullName: { contains: search, mode: 'insensitive' as const } },
             { memberNumber: { contains: search, mode: 'insensitive' as const } },
@@ -42,7 +48,7 @@ class MemberService {
             { phone: { contains: search, mode: 'insensitive' as const } },
           ],
         }
-      : {};
+      : { deletedAt: deletedFilter };
 
     return prisma.member.findMany({
       where,
@@ -259,7 +265,9 @@ class MemberService {
     }
 
     // NIKs already in the database, so those rows fail with a clear reason
-    // rather than a generic P2002.
+    // rather than a generic P2002. Soft-deleted members count too: their NIK is
+    // still reserved, so registering the person again while they sit in the
+    // trash would hit the unique index anyway.
     const existing = await prisma.member.findMany({
       where: { nikHash: { in: [...seen.keys()].map(hashNik) } },
       select: { nikHash: true },
@@ -341,6 +349,61 @@ class MemberService {
       data: { status: 'ACTIVE' },
       omit: { nikHash: true },
     });
+  }
+
+  /**
+   * Soft delete. The row and its memberships/cards/history stay in the database;
+   * the member simply stops appearing in lists, search and the scanner.
+   *
+   * `nikHash` and `qrHash` are deliberately kept: the NIK stays reserved (so the
+   * same person cannot be registered twice by accident) and a restore brings
+   * back the existing card. A real removal is a hard delete in the database,
+   * which cascades through memberships, cards, visits and scan history.
+   */
+  async softDelete(id: string, performedBy: string) {
+    const member = await this.getById(id);
+    if (member.deletedAt) {
+      throw Object.assign(new Error('Member sudah dihapus'), { status: 400 });
+    }
+
+    const deleted = await prisma.member.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+      omit: { nikHash: true },
+    });
+
+    await activityLogService.log({
+      memberId: member.id,
+      action: 'DELETE_MEMBER',
+      description: `Member ${member.memberNumber} (${member.fullName}) dihapus`,
+      oldValue: member.status,
+      performedBy,
+    });
+
+    return deleted;
+  }
+
+  /** Undo a soft delete; the existing memberships and cards become usable again. */
+  async restore(id: string, performedBy: string) {
+    const member = await this.getById(id);
+    if (!member.deletedAt) {
+      throw Object.assign(new Error('Member tidak dalam status terhapus'), { status: 400 });
+    }
+
+    const restored = await prisma.member.update({
+      where: { id },
+      data: { deletedAt: null },
+      omit: { nikHash: true },
+    });
+
+    await activityLogService.log({
+      memberId: member.id,
+      action: 'RESTORE_MEMBER',
+      description: `Member ${member.memberNumber} (${member.fullName}) dipulihkan`,
+      performedBy,
+    });
+
+    return restored;
   }
 }
 

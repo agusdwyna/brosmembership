@@ -45,7 +45,7 @@ class DashboardService {
       membershipByType,
       memberStatusCounts,
     ] = await Promise.all([
-      prisma.member.count(),
+      prisma.member.count({ where: { deletedAt: null } }),
       prisma.membership.count({ where: { status: 'ACTIVE' } }),
       prisma.membership.count({
         where: { status: 'ACTIVE', endDate: { gte: now, lte: expiringSoonUntil } },
@@ -53,7 +53,7 @@ class DashboardService {
       prisma.scanHistory.count({ where: { createdAt: { gte: todayStart } } }),
       prisma.visit.count({ where: { createdAt: { gte: todayStart } } }),
       prisma.visit.count(),
-      prisma.member.count({ where: { createdAt: { gte: monthStart } } }),
+      prisma.member.count({ where: { createdAt: { gte: monthStart }, deletedAt: null } }),
       prisma.scanHistory.findMany({
         take: 10,
         orderBy: { createdAt: 'desc' },
@@ -74,6 +74,7 @@ class DashboardService {
       }),
       prisma.member.groupBy({
         by: ['status'],
+        where: { deletedAt: null },
         _count: { id: true },
       }),
     ]);
@@ -91,7 +92,7 @@ class DashboardService {
       months.map(async (m) => ({
         label: m.label,
         count: await prisma.member.count({
-          where: { createdAt: { gte: m.start, lte: m.end } },
+          where: { createdAt: { gte: m.start, lte: m.end }, deletedAt: null },
         }),
       })),
     );
@@ -101,7 +102,7 @@ class DashboardService {
       weeks.map(async (w) => ({
         label: w.label,
         count: await prisma.member.count({
-          where: { createdAt: { gte: w.start, lte: w.end } },
+          where: { createdAt: { gte: w.start, lte: w.end }, deletedAt: null },
         }),
       })),
     );

@@ -6,7 +6,9 @@ class MemberController {
   async list(req: Request, res: Response, next: NextFunction) {
     try {
       const search = req.query.search as string | undefined;
-      const data = await memberService.list(search);
+      // `?deleted=true` lists deleted members so they can be restored.
+      const deleted = req.query.deleted === 'true';
+      const data = await memberService.list(search, deleted);
       listResponse(res, data);
     } catch (err) {
       next(err);
@@ -63,6 +65,24 @@ class MemberController {
   async activate(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await memberService.activate(req.params.id as string);
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async remove(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await memberService.softDelete(req.params.id as string, req.user!.id);
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async restore(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await memberService.restore(req.params.id as string, req.user!.id);
       res.json({ data });
     } catch (err) {
       next(err);

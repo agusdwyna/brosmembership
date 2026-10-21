@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../../config/database', () => ({
   prisma: {
     visit: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn() },
-    member: { findUnique: vi.fn() },
+    member: { findFirst: vi.fn() },
   },
 }));
 
@@ -27,7 +27,7 @@ describe('VisitService.record', () => {
 
   it('rejects an unknown member with 404', async () => {
     (prisma.visit.findUnique as any).mockResolvedValue(null);
-    (prisma.member.findUnique as any).mockResolvedValue(null);
+    (prisma.member.findFirst as any).mockResolvedValue(null);
 
     await expect(service.record({ memberId: 'missing' }, 'officer1')).rejects.toMatchObject({
       status: 404,
@@ -36,7 +36,7 @@ describe('VisitService.record', () => {
 
   it('creates a visit for a known member', async () => {
     (prisma.visit.findUnique as any).mockResolvedValue(null);
-    (prisma.member.findUnique as any).mockResolvedValue({ id: 'm1' });
+    (prisma.member.findFirst as any).mockResolvedValue({ id: 'm1' });
     (prisma.visit.create as any).mockResolvedValue({ id: 'v2' });
 
     const result = await service.record({ memberId: 'm1', scanId: 's2' }, 'officer1');

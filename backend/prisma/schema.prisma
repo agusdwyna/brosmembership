@@ -77,6 +77,10 @@ model Member {
   dateOfBirth  DateTime?
   companyId    String?
   status       String   @default("ACTIVE") // ACTIVE | INACTIVE
+  // Soft delete: a deleted member disappears from lists, search and the scanner
+  // but keeps its memberships/cards/history. Hard deletion (see the FK rules
+  // below) is still possible straight in the database when data must really go.
+  deletedAt    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -120,7 +124,11 @@ model Membership {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  member         Member          @relation(fields: [memberId], references: [id])
+  // Cascading from Member lets a hard delete in the database remove the
+  // member's own memberships (and, in turn, their cards) without a manual
+  // cleanup. The membership type is a master row shared by many members, so
+  // deleting a type that is still in use stays blocked (RESTRICT).
+  member         Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
   membershipType MembershipType  @relation(fields: [membershipTypeId], references: [id])
   cards          MembershipCard[]
   scanHistory    ScanHistory[]
@@ -187,7 +195,7 @@ model MembershipCard {
   issuedAt        DateTime  @default(now())
   createdAt       DateTime  @default(now())
 
-  membership   Membership   @relation(fields: [membershipId], references: [id])
+  membership   Membership   @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   cardTemplate CardTemplate @relation(fields: [cardTemplateId], references: [id])
 
   @@map("membership_cards")
@@ -221,7 +229,9 @@ model ActivityLog {
   performedBy  String
   createdAt    DateTime @default(now())
 
-  member   Member? @relation(fields: [memberId], references: [id])
+  // Cascades on a hard delete: removing a member removes its activity history
+  // too, which is the point of a hard delete (the app itself soft-deletes).
+  member   Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
   officer  User    @relation(fields: [performedBy], references: [id])
 
   @@map("activity_logs")
@@ -237,8 +247,9 @@ model ScanHistory {
   officerId    String
   createdAt    DateTime @default(now())
 
-  member     Member?        @relation(fields: [memberId], references: [id])
-  membership Membership?    @relation(fields: [membershipId], references: [id])
+  // Cascades with the member: a hard delete removes the member's scan rows too.
+  member     Member?        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  membership Membership?    @relation(fields: [membershipId], references: [id], onDelete: SetNull)
   officer    User           @relation(fields: [officerId], references: [id])
 
   @@map("scan_history")
@@ -256,7 +267,9 @@ model Visit {
   scanId       String?  @unique
   createdAt    DateTime @default(now())
 
-  member     Member      @relation(fields: [memberId], references: [id])
+  // A hard delete in the database is meant to remove the member completely,
+  // history included, so visits (and their scans) cascade away with them.
+  member     Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
   membership Membership? @relation(fields: [membershipId], references: [id])
   officer    User        @relation(fields: [officerId], references: [id])
 

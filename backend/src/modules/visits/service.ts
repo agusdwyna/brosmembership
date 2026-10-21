@@ -15,7 +15,9 @@ class VisitService {
       if (existing) return existing;
     }
 
-    const member = await prisma.member.findUnique({ where: { id: input.memberId } });
+    const member = await prisma.member.findFirst({
+      where: { id: input.memberId, deletedAt: null },
+    });
     if (!member) throw Object.assign(new Error('Member tidak ditemukan'), { status: 404 });
 
     try {

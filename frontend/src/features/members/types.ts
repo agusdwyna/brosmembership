@@ -13,6 +13,8 @@ export interface Member {
   companyId?: string | null;
   company?: CompanySummary | null;
   status: string;
+  /** Set when the member is soft-deleted; only listed via `deleted: true`. */
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   memberships: Membership[];

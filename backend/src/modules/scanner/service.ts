@@ -272,23 +272,27 @@ export class ScannerService {
   }
 
   private async findMember(token: string) {
+    // Every lookup uses findFirst rather than findUnique because deleted
+    // members must not resolve. Their unique columns are also tombstoned on
+    // delete, but this keeps the rule explicit and survives a manual restore.
+
     // 1. Try by qrHash — the QR payload IS the stored hash, so compare it
     // directly. Do NOT hash again: hashing here would look up sha256(qrHash),
     // which never matches what members/service.ts stored.
-    let member = await prisma.member.findUnique({
-      where: { qrHash: token },
+    let member = await prisma.member.findFirst({
+      where: { qrHash: token, deletedAt: null },
     });
     if (member) return member;
 
     // 2. Try by memberNumber
-    member = await prisma.member.findUnique({
-      where: { memberNumber: token },
+    member = await prisma.member.findFirst({
+      where: { memberNumber: token, deletedAt: null },
     });
     if (member) return member;
 
     // 3. Try by NIK — only its HMAC is stored, so hash the typed value first.
-    member = await prisma.member.findUnique({
-      where: { nikHash: hashNik(token) },
+    member = await prisma.member.findFirst({
+      where: { nikHash: hashNik(token), deletedAt: null },
     });
     return member;
   }

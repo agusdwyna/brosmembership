@@ -11,6 +11,8 @@ const canView = requirePermission('member.view');
 const canCreate = requirePermission('member.create');
 const canEdit = requirePermission('member.edit');
 const canManage = requirePermission('member.manage');
+// Deleting is deliberately its own grant, separate from activate/deactivate.
+const canDelete = requirePermission('member.delete');
 
 router.get('/', canView, memberController.list);
 // Register import above `/:id` so the literal path is not read as a member id.
@@ -20,5 +22,7 @@ router.post('/', canCreate, validate(createMemberSchema), memberController.creat
 router.put('/:id', canEdit, validate(updateMemberSchema), memberController.update);
 router.post('/:id/deactivate', canManage, memberController.deactivate);
 router.post('/:id/activate', canManage, memberController.activate);
+router.delete('/:id', canDelete, memberController.remove);
+router.post('/:id/restore', canDelete, memberController.restore);
 
 export { router as memberRoutes };

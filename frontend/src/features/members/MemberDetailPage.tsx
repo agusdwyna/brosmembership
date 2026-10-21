@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { membersApi } from './api';
 import { activityLogApi } from './activity-log-api';
 import { visitsApi } from '@/features/visits/api';
@@ -48,10 +48,12 @@ const ACTION_COLORS: Record<string, string> = {
 
 export function MemberDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const permissions = useAuthStore((s) => s.user?.permissions) ?? [];
   const canViewActivity = permissions.includes('activityLog.view');
   const canViewVisits = permissions.includes('visit.view');
   const canManageMember = useCan('member.manage');
+  const canDeleteMember = useCan('member.delete');
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -235,6 +237,12 @@ export function MemberDetailPage() {
         await membersApi.activate(confirmAction.targetId);
         toast.success('Member activated');
       }
+      if (confirmAction.type === 'delete') {
+        await membersApi.remove(confirmAction.targetId);
+        toast.success('Member dihapus');
+        navigate('/members');
+        return;
+      }
       await loadMember();
       await loadActivityLogs();
     } catch (err) {
@@ -323,21 +331,30 @@ export function MemberDetailPage() {
         description={member.memberNumber}
         backTo="/members"
         action={
-          canManageMember ? (
+          canManageMember || canDeleteMember ? (
             <div className="flex gap-2">
-              {member.status === 'ACTIVE' ? (
+              {canManageMember &&
+                (member.status === 'ACTIVE' ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setConfirmAction({ type: 'deactivate', targetId: member.id })}
+                  >
+                    Nonaktifkan
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setConfirmAction({ type: 'activate', targetId: member.id })}
+                  >
+                    Aktifkan
+                  </Button>
+                ))}
+              {canDeleteMember && (
                 <Button
                   variant="danger"
-                  onClick={() => setConfirmAction({ type: 'deactivate', targetId: member.id })}
+                  onClick={() => setConfirmAction({ type: 'delete', targetId: member.id })}
                 >
-                  Nonaktifkan
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  onClick={() => setConfirmAction({ type: 'activate', targetId: member.id })}
-                >
-                  Aktifkan
+                  Hapus Member
                 </Button>
               )}
             </div>
@@ -789,26 +806,34 @@ export function MemberDetailPage() {
             ? 'Nonaktifkan Member'
             : confirmAction?.type === 'activate'
               ? 'Aktifkan Member'
-              : 'Konfirmasi Aksi'
+              : confirmAction?.type === 'delete'
+                ? 'Hapus Member'
+                : 'Konfirmasi Aksi'
         }
         description={
           confirmAction?.type === 'deactivate'
             ? 'Member ini akan ditandai tidak aktif dan tidak dapat diverifikasi.'
             : confirmAction?.type === 'activate'
               ? 'Member ini akan diaktifkan kembali dan dapat diverifikasi.'
-              : `Yakin ingin melanjutkan aksi ini pada membership?`
+              : confirmAction?.type === 'delete'
+                ? `${member.fullName} akan dihapus dan tidak muncul lagi di daftar maupun scanner. Riwayat kunjungan dan scan tetap tersimpan, dan member bisa dipulihkan lewat "Tampilkan yang terhapus".`
+                : `Yakin ingin melanjutkan aksi ini pada membership?`
         }
         confirmLabel={
           confirmAction?.type === 'deactivate'
             ? 'Nonaktifkan'
             : confirmAction?.type === 'activate'
               ? 'Aktifkan'
-              : confirmAction?.type === 'cancel'
-                ? 'Ya, lanjutkan'
-                : 'Ya'
+              : confirmAction?.type === 'delete'
+                ? 'Hapus'
+                : confirmAction?.type === 'cancel'
+                  ? 'Ya, lanjutkan'
+                  : 'Ya'
         }
         variant={
-          confirmAction?.type === 'cancel' || confirmAction?.type === 'deactivate'
+          confirmAction?.type === 'cancel' ||
+          confirmAction?.type === 'deactivate' ||
+          confirmAction?.type === 'delete'
             ? 'danger'
             : 'primary'
         }

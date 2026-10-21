@@ -9,7 +9,11 @@ import type {
 } from './types';
 
 export const membersApi = {
-  list: (search?: string) => api.get<ListResponse<Member>>('/members', { params: { search } }),
+  /** `deleted: true` lists soft-deleted members (the "Terhapus" filter). */
+  list: (search?: string, deleted = false) =>
+    api.get<ListResponse<Member>>('/members', {
+      params: { search, deleted: deleted || undefined },
+    }),
 
   getById: (id: string) => api.get<{ data: Member }>(`/members/${id}`),
 
@@ -21,6 +25,11 @@ export const membersApi = {
   deactivate: (id: string) => api.post<{ data: Member }>(`/members/${id}/deactivate`),
 
   activate: (id: string) => api.post<{ data: Member }>(`/members/${id}/activate`),
+
+  /** Soft delete: hidden from lists and the scanner, history preserved. */
+  remove: (id: string) => api.delete<{ data: Member }>(`/members/${id}`),
+
+  restore: (id: string) => api.post<{ data: Member }>(`/members/${id}/restore`),
 
   /**
    * Bulk create from the Excel/CSV preview. The API keeps every valid row and
