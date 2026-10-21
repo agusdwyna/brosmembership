@@ -15,6 +15,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from '@/components/ui/toast-store';
 import { Plus } from 'lucide-react';
 import { format } from 'date-fns';
+import { TemplatePreviewModal } from './components/TemplatePreviewModal';
 
 export function CardTemplatesPage() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export function CardTemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [toggleTarget, setToggleTarget] = useState<CardTemplate | null>(null);
   const [toggleLoading, setToggleLoading] = useState(false);
+  const [previewTarget, setPreviewTarget] = useState<CardTemplate | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -101,6 +103,12 @@ export function CardTemplatesPage() {
         <RowActions
           actions={[
             {
+              key: 'preview',
+              label: 'Pratinjau',
+              variant: 'default',
+              onClick: () => setPreviewTarget(t),
+            },
+            {
               key: 'edit',
               label: 'Ubah template',
               variant: 'brand',
@@ -167,6 +175,8 @@ export function CardTemplatesPage() {
         variant={toggleTarget?.status === 'ACTIVE' ? 'danger' : 'primary'}
         loading={toggleLoading}
       />
+
+      <TemplatePreviewModal template={previewTarget} onClose={() => setPreviewTarget(null)} />
     </div>
   );
 }

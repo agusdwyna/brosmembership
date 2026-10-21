@@ -46,9 +46,9 @@ app.use(
   }),
 );
 if (env.NODE_ENV !== 'production') app.use(morgan('dev'));
-// Default 100kb body cap is deliberate: JSON payloads here are small, and a
-// tighter body limit shrinks the surface for oversized-request abuse.
-app.use(express.json({ limit: '100kb' }));
+// 2mb: ordinary JSON payloads are small, but the bulk member import posts up to
+// 500 rows in one request (~200kb). The cap still bounds oversized requests.
+app.use(express.json({ limit: '2mb' }));
 
 // Broad per-client ceiling across the API (login has its own, tighter limit).
 app.use(globalLimiter);

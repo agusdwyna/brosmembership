@@ -93,6 +93,39 @@ export interface UpdateMemberInput {
   companyId?: string;
 }
 
+/**
+ * A parsed import row plus the choices made on the preview screen. The row is
+ * editable there: company/type codes from the file are resolved to ids, and the
+ * operator can correct any cell before submitting.
+ */
+export interface ImportRowDraft {
+  rowNumber: number;
+  fullName: string;
+  nik: string;
+  phone: string;
+  email: string;
+  address: string;
+  /** Omitted when the source cell was blank; the backend treats it as absent. */
+  dateOfBirth?: string;
+  companyId: string;
+  membershipTypeId: string;
+  startDate: string;
+  /** Code as written in the file, kept to explain an unmatched company. */
+  companyCode?: string;
+  /** Code as written in the file, kept to explain an unmatched type. */
+  typeCode?: string;
+}
+
+export interface ImportFailedRow {
+  rowNumber: number;
+  message: string;
+}
+
+export interface ImportResult {
+  created: number;
+  failed: ImportFailedRow[];
+}
+
 export interface ActivityLogItem {
   id: string;
   memberId: string;

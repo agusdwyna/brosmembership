@@ -31,6 +31,15 @@ class MemberController {
     }
   }
 
+  async importMany(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await memberService.importMany(req.body.rows, req.user!.id);
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await memberService.update(req.params.id as string, req.body);

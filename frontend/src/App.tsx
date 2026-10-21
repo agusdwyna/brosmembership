@@ -10,6 +10,7 @@ import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { MembersPage } from '@/features/members/MembersPage';
 import { MemberDetailPage } from '@/features/members/MemberDetailPage';
 import { MemberCreatePage } from '@/features/members/MemberCreatePage';
+import { MembersImportPage } from '@/features/members/MembersImportPage';
 import { CompaniesPage, CompanyFormPage } from '@/features/companies/CompaniesPage';
 import {
   MembershipTypesPage,
@@ -112,6 +113,7 @@ export function App() {
           <Route path="profile/password" element={<ChangePasswordPage />} />
           <Route path="members" element={guard('member.view', <MembersPage />)} />
           <Route path="members/create" element={guard('member.create', <MemberCreatePage />)} />
+          <Route path="members/import" element={guard('member.create', <MembersImportPage />)} />
           <Route path="members/:id" element={guard('member.view', <MemberDetailPage />)} />
           <Route path="companies" element={guard('company.view', <CompaniesPage />)} />
           <Route path="companies/new" element={guard('company.create', <CompanyFormPage />)} />

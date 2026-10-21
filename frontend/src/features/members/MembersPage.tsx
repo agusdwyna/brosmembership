@@ -16,7 +16,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from '@/components/ui/toast-store';
 import { exportCardsToPDF } from '@/lib/pdf-export';
 import { useCan } from '@/lib/use-permission';
-import { Plus, FileDown, Loader2 } from 'lucide-react';
+import { Plus, FileDown, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { MembershipCard } from '@/features/cards/types';
 
@@ -239,9 +239,14 @@ export function MembersPage() {
               </Button>
             )}
             {canCreate && (
-              <Button onClick={() => navigate('/members/create')}>
-                <Plus className="w-4 h-4" /> Tambah Member
-              </Button>
+              <>
+                <Button variant="secondary" onClick={() => navigate('/members/import')}>
+                  <FileSpreadsheet className="w-4 h-4" /> Import Excel
+                </Button>
+                <Button onClick={() => navigate('/members/create')}>
+                  <Plus className="w-4 h-4" /> Tambah Member
+                </Button>
+              </>
             )}
           </div>
         }

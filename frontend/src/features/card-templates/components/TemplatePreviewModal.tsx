@@ -1,0 +1,156 @@
+import { useMemo, useState } from 'react';
+import { addYears, format } from 'date-fns';
+import { Modal } from '@/components/ui/Modal';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { CardPreview } from '@/features/cards/components/CardPreview';
+import type { MembershipCard } from '@/features/cards/types';
+import type { CardTemplate, SideType } from '../types';
+
+/**
+ * Sample member used only to fill the template's elements. There is no real
+ * member attached to a template, and a preview with blank fields would not show
+ * whether the layout actually works.
+ */
+const SAMPLE = {
+  fullName: 'Budi Santoso',
+  memberNumber: '2601000001',
+  // Drives the QR image; any stable string works, the card never scans it.
+  qrHash: 'PREVIEW-SAMPLE',
+  membershipName: 'Gold Membership',
+  cardNumber: 'CARD-000001',
+};
+
+/** Scale applied on top of the 400×250 renderer so the preview reads comfortably. */
+const SCALE = 1.3;
+
+interface TemplatePreviewModalProps {
+  template: CardTemplate | null;
+  onClose: () => void;
+}
+
+export function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) {
+  const [side, setSide] = useState<SideType>('FRONT');
+
+  /**
+   * Templates are not cards, so a card-shaped object is synthesised for
+   * `CardPreview`. Reusing that component keeps the preview pixel-identical to
+   * the card shown on member/card pages instead of re-implementing the renderer.
+   */
+  const previewCard = useMemo<MembershipCard | null>(() => {
+    if (!template) return null;
+
+    const now = new Date();
+    return {
+      id: 'preview',
+      membershipId: 'preview',
+      cardNumber: SAMPLE.cardNumber,
+      cardTemplateId: template.id,
+      templateVersion: 1,
+      issuedAt: now.toISOString(),
+      createdAt: now.toISOString(),
+      membership: {
+        id: 'preview',
+        memberId: 'preview',
+        startDate: now.toISOString(),
+        endDate: addYears(now, 1).toISOString(),
+        status: 'ACTIVE',
+        member: {
+          id: 'preview',
+          memberNumber: SAMPLE.memberNumber,
+          nik: null,
+          qrHash: SAMPLE.qrHash,
+          fullName: SAMPLE.fullName,
+        },
+        membershipType: { id: 'preview', code: 'PREVIEW', name: SAMPLE.membershipName },
+      },
+      cardTemplate: {
+        id: template.id,
+        name: template.name,
+        sides: template.sides.map((s) => ({
+          id: s.id,
+          side: s.side,
+          designUrl: s.designUrl ?? null,
+          elements: s.elements.map((el, idx) => ({
+            id: el.id ?? `preview-${s.side}-${idx}`,
+            type: el.type,
+            x: el.x,
+            y: el.y,
+            width: el.width,
+            height: el.height,
+            fontSize: el.fontSize ?? null,
+            fontWeight: el.fontWeight ?? null,
+            alignment: el.alignment ?? null,
+          })),
+        })),
+      },
+    };
+  }, [template]);
+
+  const activeSide = template?.sides.find((s) => s.side === side);
+
+  return (
+    <Modal
+      open={!!template}
+      onClose={onClose}
+      title={`Pratinjau — ${template?.name ?? ''}`}
+      className="max-w-2xl"
+    >
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="inline-flex rounded-[4px] border border-border overflow-hidden">
+            {(['FRONT', 'BACK'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setSide(value)}
+                className={
+                  side === value
+                    ? 'px-3 h-8 text-[13px] font-medium bg-brand text-white'
+                    : 'px-3 h-8 text-[13px] text-secondary hover:bg-bg'
+                }
+              >
+                {value === 'FRONT' ? 'Depan' : 'Belakang'}
+              </button>
+            ))}
+          </div>
+          <span className="text-[12px] text-muted">
+            Data contoh — {format(new Date(), 'dd MMM yyyy')}
+          </span>
+        </div>
+
+        {!activeSide || activeSide.elements.length === 0 ? (
+          <EmptyState
+            title={side === 'FRONT' ? 'Sisi depan belum diatur' : 'Sisi belakang belum diatur'}
+            description="Tambahkan elemen lewat menu Ubah template untuk melihat hasilnya di sini."
+          />
+        ) : (
+          // The renderer is fixed at 400×250; the wrapper reserves the scaled
+          // box so the transform does not overlap surrounding content.
+          <div className="flex justify-center overflow-x-auto">
+            <div
+              style={{
+                width: 400 * SCALE,
+                height: 250 * SCALE,
+              }}
+            >
+              <div
+                style={{
+                  transform: `scale(${SCALE})`,
+                  transformOrigin: 'top left',
+                }}
+              >
+                {previewCard && <CardPreview card={previewCard} side={side} />}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeSide && activeSide.elements.length > 0 && (
+          <p className="text-[12px] text-muted">
+            {activeSide.elements.length} elemen pada sisi {side === 'FRONT' ? 'depan' : 'belakang'}.
+          </p>
+        )}
+      </div>
+    </Modal>
+  );
+}

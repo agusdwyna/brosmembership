@@ -132,6 +132,113 @@ describe('MemberService', () => {
     });
   });
 
+  describe('importMany — per-row outcomes', () => {
+    const row = (rowNumber: number, nik: string) => ({
+      rowNumber,
+      fullName: 'Agus',
+      nik,
+      membershipTypeId: 'mt1',
+      startDate: new Date('2025-01-01'),
+    });
+
+    function primeImport() {
+      (prisma.membershipType.findUnique as any).mockResolvedValue({
+        id: 'mt1',
+        name: 'Gold',
+        duration: 365,
+        status: 'ACTIVE',
+        defaultCardTemplateId: 'tpl-gold',
+        defaultCardTemplate: { id: 'tpl-gold', status: 'ACTIVE' },
+      });
+      (prisma.member.findMany as any).mockResolvedValue([]);
+      (prisma.member.findUnique as any).mockResolvedValue({ id: 'm1' });
+    }
+
+    it('creates every valid row and reports none as failed', async () => {
+      primeImport();
+
+      const result = await service.importMany(
+        [row(2, '3201234567890123'), row(3, '3201234567890124')],
+        'officer1',
+      );
+
+      expect(result.created).toBe(2);
+      expect(result.failed).toEqual([]);
+    });
+
+    it('skips NIKs that already exist in the database but still creates the rest', async () => {
+      primeImport();
+      (prisma.member.findMany as any).mockResolvedValue([{ nik: '3201234567890123' }]);
+
+      const result = await service.importMany(
+        [row(2, '3201234567890123'), row(3, '3201234567890124')],
+        'officer1',
+      );
+
+      expect(result.created).toBe(1);
+      expect(result.failed).toEqual([
+        { rowNumber: 2, message: 'NIK 3201234567890123 sudah terdaftar' },
+      ]);
+    });
+
+    it('rejects NIKs repeated inside the file with both row numbers', async () => {
+      primeImport();
+
+      const result = await service.importMany(
+        [row(2, '3201234567890123'), row(3, '3201234567890123')],
+        'officer1',
+      );
+
+      expect(result.created).toBe(0);
+      expect(result.failed.map((f) => f.rowNumber)).toEqual([2, 3]);
+      // Neither duplicate reaches create(), so no membership is written.
+      expect(txMock.membership.create).not.toHaveBeenCalled();
+    });
+
+    it('does not re-read full member detail for each row', async () => {
+      primeImport();
+
+      await service.importMany(
+        [row(2, '3201234567890123'), row(3, '3201234567890124')],
+        'officer1',
+      );
+
+      // getById is the only member.findUnique caller; running it per row would
+      // pull every membership, card, template element and scan for nothing.
+      expect(prisma.member.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('keeps creating after a row throws (e.g. inactive membership type)', async () => {
+      primeImport();
+      (prisma.membershipType.findUnique as any)
+        .mockResolvedValueOnce({
+          id: 'mt1',
+          name: 'Gold',
+          duration: 365,
+          status: 'INACTIVE',
+          defaultCardTemplateId: null,
+          defaultCardTemplate: null,
+        })
+        .mockResolvedValue({
+          id: 'mt1',
+          name: 'Gold',
+          duration: 365,
+          status: 'ACTIVE',
+          defaultCardTemplateId: 'tpl-gold',
+          defaultCardTemplate: { id: 'tpl-gold', status: 'ACTIVE' },
+        });
+
+      const result = await service.importMany(
+        [row(2, '3201234567890123'), row(3, '3201234567890124')],
+        'officer1',
+      );
+
+      expect(result.created).toBe(1);
+      expect(result.failed).toHaveLength(1);
+      expect(result.failed[0].rowNumber).toBe(2);
+    });
+  });
+
   describe('list — template data reaches the client', () => {
     it('includes the card template with sides and elements', async () => {
       (prisma.member.findMany as any).mockResolvedValue([]);

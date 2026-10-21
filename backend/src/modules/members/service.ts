@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database';
-import type { CreateMemberInput, UpdateMemberInput } from './schema';
+import type { CreateMemberInput, ImportMemberRow, UpdateMemberInput } from './schema';
 import { createHash } from 'crypto';
 import { activityLogService } from '../activity-log/service';
 import { LIST_LIMIT } from '../../lib/query';
@@ -91,7 +91,11 @@ class MemberService {
     return member;
   }
 
-  async create(input: CreateMemberInput, performedBy: string) {
+  async create(
+    input: CreateMemberInput,
+    performedBy: string,
+    options: { withDetail?: boolean } = {},
+  ) {
     // Read-only lookups first: membership type + the template to print.
     const membershipType = await prisma.membershipType.findUnique({
       where: { id: input.membershipTypeId },
@@ -182,7 +186,75 @@ class MemberService {
       performedBy,
     });
 
+    // Callers that only need the created row (bulk import) skip the full read.
+    if (options.withDetail === false) return result.member;
+
     return this.getById(result.member.id);
+  }
+
+  /**
+   * Bulk import for the Excel/CSV flow.
+   *
+   * Each row goes through `create()`, so numbering, QR hash, card issuance,
+   * the transaction + retry and the activity log all behave exactly like a
+   * single registration. Rows are independent on purpose: one bad row (duplicate
+   * NIK, inactive membership type, …) is reported back instead of rolling back
+   * the whole batch.
+   *
+   * NIKs that repeat inside the uploaded file are rejected up front — letting
+   * them through would create one member and fail the rest with a P2002 whose
+   * message ("Data sudah ada (duplikat)") does not say which line to fix.
+   */
+  async importMany(rows: ImportMemberRow[], performedBy: string) {
+    const seen = new Map<string, number>();
+    const duplicateRows = new Set<number>();
+    for (const row of rows) {
+      const first = seen.get(row.nik);
+      if (first !== undefined) {
+        duplicateRows.add(first);
+        duplicateRows.add(row.rowNumber);
+      } else {
+        seen.set(row.nik, row.rowNumber);
+      }
+    }
+
+    // Reject NIKs that already exist in the database before creating anything,
+    // so those rows fail with a clear reason rather than a generic P2002.
+    const existing = await prisma.member.findMany({
+      where: { nik: { in: [...seen.keys()] } },
+      select: { nik: true },
+    });
+    const takenNiks = new Set(existing.map((m) => m.nik));
+
+    const created: string[] = [];
+    const failed: { rowNumber: number; message: string }[] = [];
+
+    for (const row of rows) {
+      if (duplicateRows.has(row.rowNumber)) {
+        failed.push({
+          rowNumber: row.rowNumber,
+          message: `NIK ${row.nik} duplikat di dalam file`,
+        });
+        continue;
+      }
+      if (takenNiks.has(row.nik)) {
+        failed.push({ rowNumber: row.rowNumber, message: `NIK ${row.nik} sudah terdaftar` });
+        continue;
+      }
+
+      try {
+        // `create` ends with getById(), which re-reads the member with every
+        // membership, card, template side/element and the latest 50 scans. That
+        // payload is needed by the single-registration screen but not here, and
+        // repeating it 500× would dominate the import's runtime.
+        const { id } = await this.create(row, performedBy, { withDetail: false });
+        created.push(id);
+      } catch (err) {
+        failed.push({ rowNumber: row.rowNumber, message: (err as Error).message });
+      }
+    }
+
+    return { created: created.length, failed };
   }
 
   async update(id: string, input: UpdateMemberInput) {
