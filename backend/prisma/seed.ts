@@ -32,7 +32,7 @@ async function main() {
       email: ADMIN_EMAIL,
       passwordHash,
       name: 'Admin BROs',
-      role: 'ADMIN',
+      role: 'IT_GOD',
     },
   });
   console.log(`  ✓ User: ${admin.email}`);
@@ -196,7 +196,7 @@ async function main() {
 
   console.log('✅ Seed completed!');
   console.log('');
-  console.log(`Users seeded: ${ADMIN_EMAIL} (ADMIN), ${OFFICER_EMAIL} (OFFICER)`);
+  console.log(`Users seeded: ${ADMIN_EMAIL} (IT_GOD), ${OFFICER_EMAIL} (OFFICER)`);
   console.log('Passwords diambil dari SEED_ADMIN_PASSWORD / SEED_OFFICER_PASSWORD — tidak dicetak.');
 }
 
