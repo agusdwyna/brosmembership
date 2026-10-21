@@ -127,8 +127,9 @@ RUN_MIGRATIONS=true
 RUN_SEED=true
 SEED_ADMIN_EMAIL=admin@domain-anda.com
 SEED_ADMIN_PASSWORD=password-kuat-admin
-SEED_OFFICER_EMAIL=officer@domain-anda.com
-SEED_OFFICER_PASSWORD=password-kuat-officer
+# Opsional — kosongkan bila tidak perlu akun officer awal.
+# SEED_OFFICER_EMAIL=officer@domain-anda.com
+# SEED_OFFICER_PASSWORD=password-kuat-officer
 ```
 
 ### Catatan penting
@@ -145,6 +146,9 @@ SEED_OFFICER_PASSWORD=password-kuat-officer
 - **`RUN_SEED=true` hanya untuk deploy pertama.** Seed memakai upsert, tetapi
   seed juga mengembalikan izin role sistem (`ADMIN`, `OFFICER`) ke default.
   Set `false` setelah berhasil agar perubahan izin dari UI tidak tertimpa.
+- **Hanya `SEED_ADMIN_PASSWORD` yang wajib.** `SEED_OFFICER_PASSWORD` opsional —
+  biarkan kosong dan akun officer dilewati; buat officer lewat menu pengguna.
+  Seed yang gagal tidak menghentikan container (hanya ditulis di log).
 - Seed **tidak mengubah password user yang sudah ada** (`update: {}`). Jika user
   sudah pernah dibuat, ubah password lewat menu **Profil → Ganti Password**.
 - **Jangan set `VITE_API_URL`.** Frontend sudah dibangun dengan base URL relatif
@@ -230,7 +234,8 @@ member, membership, kunjungan, dan log tidak hilang.
 | Migrasi gagal / `P1001: Can't reach database server` | `DATABASE_URL` salah atau DB beda network | Salin internal URL dari resource PostgreSQL; pastikan satu project/environment |
 | `P1000` / authentication failed | Password salah atau karakter khusus tidak di-encode | URL-encode password, cek user/database |
 | Deploy berhenti di `Menunggu database siap` | DB belum selesai start | Entrypoint retry ±45 detik; cek status DB lalu redeploy |
-| Seed gagal: `SEED_ADMIN_PASSWORD … wajib diisi` | `RUN_SEED=true` tanpa password | Isi kedua `SEED_*_PASSWORD` |
+| Seed gagal: `SEED_ADMIN_PASSWORD … wajib diisi` | `RUN_SEED=true` tanpa password admin | Isi `SEED_ADMIN_PASSWORD`. Officer opsional |
+| Container restart berulang setelah seed gagal | Entrypoint lama berhenti saat seed error | Sudah diperbaiki: seed gagal hanya di-log, app tetap jalan |
 | App jalan tapi 502 dari domain | Container belum siap / port salah | Cek log container; pastikan **Ports Exposes = 80** dan `PORT=80` |
 | Upload gambar hilang setelah redeploy | Volume belum dipasang | Tambahkan volume ke `/app/backend/uploads` |
 | Semua user kena rate limit yang sama | `TRUST_PROXY` kurang | Set `TRUST_PROXY=2` (Coolify proxy + nginx) |

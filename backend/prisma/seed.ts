@@ -14,14 +14,18 @@ const OFFICER_PASSWORD = process.env.SEED_OFFICER_PASSWORD || 'officer123';
 async function main() {
   console.log('🌱 Seeding database...');
 
-  if (
-    process.env.NODE_ENV === 'production' &&
-    (!process.env.SEED_ADMIN_PASSWORD || !process.env.SEED_OFFICER_PASSWORD)
-  ) {
-    throw new Error(
-      'SEED_ADMIN_PASSWORD dan SEED_OFFICER_PASSWORD wajib diisi saat seeding di production.',
-    );
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // Only the admin password is mandatory: without it there is no way to log in.
+  if (isProduction && !process.env.SEED_ADMIN_PASSWORD) {
+    throw new Error('SEED_ADMIN_PASSWORD wajib diisi saat seeding di production.');
   }
+
+  // The officer account is optional. Create it only when a password was
+  // provided (or in development, where the fallback below applies). A missing
+  // SEED_OFFICER_PASSWORD must not abort the whole seed — the admin account is
+  // enough to boot and create officers later from the UI.
+  const createOfficer = !isProduction || Boolean(process.env.SEED_OFFICER_PASSWORD);
 
   // 1. Create admin user
   const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
@@ -37,19 +41,23 @@ async function main() {
   });
   console.log(`  ✓ User: ${admin.email}`);
 
-  // 2. Create officer user
-  const officerHash = await bcrypt.hash(OFFICER_PASSWORD, 10);
-  const officer = await prisma.user.upsert({
-    where: { email: OFFICER_EMAIL },
-    update: {},
-    create: {
-      email: OFFICER_EMAIL,
-      passwordHash: officerHash,
-      name: 'Officer BROs',
-      role: 'OFFICER',
-    },
-  });
-  console.log(`  ✓ User: ${officer.email}`);
+  // 2. Create officer user (optional — see createOfficer above)
+  if (createOfficer) {
+    const officerHash = await bcrypt.hash(OFFICER_PASSWORD, 10);
+    const officer = await prisma.user.upsert({
+      where: { email: OFFICER_EMAIL },
+      update: {},
+      create: {
+        email: OFFICER_EMAIL,
+        passwordHash: officerHash,
+        name: 'Officer BROs',
+        role: 'OFFICER',
+      },
+    });
+    console.log(`  ✓ User: ${officer.email}`);
+  } else {
+    console.log('  ↷ Officer dilewati (SEED_OFFICER_PASSWORD tidak diisi).');
+  }
 
   // 3. Seed built-in roles. System roles are code-owned, so re-seeding keeps
   // their label/permissions in sync; custom roles made in the UI are untouched.
@@ -196,7 +204,11 @@ async function main() {
 
   console.log('✅ Seed completed!');
   console.log('');
-  console.log(`Users seeded: ${ADMIN_EMAIL} (IT_GOD), ${OFFICER_EMAIL} (OFFICER)`);
+  console.log(
+    createOfficer
+      ? `Users seeded: ${ADMIN_EMAIL} (IT_GOD), ${OFFICER_EMAIL} (OFFICER)`
+      : `Users seeded: ${ADMIN_EMAIL} (IT_GOD)`,
+  );
   console.log('Passwords diambil dari SEED_ADMIN_PASSWORD / SEED_OFFICER_PASSWORD — tidak dicetak.');
 }
 

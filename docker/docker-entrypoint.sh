@@ -36,10 +36,15 @@ else
 fi
 
 # ─── Optional first-time seed ─────────────────────────────────────────────
-# Idempotent (uses upserts). Enable with RUN_SEED=true and set SEED_* passwords.
+# Idempotent (uses upserts). Enable with RUN_SEED=true and set SEED_ADMIN_PASSWORD.
+# A failed seed must NOT stop the container: with `set -e` it would exit, Coolify
+# would restart the container, the seed would fail again, and the health check
+# would never pass. The app boots fine without it — log the failure and continue.
 if [ "${RUN_SEED:-false}" = "true" ]; then
   echo "▶ Seeding database…"
-  (cd /app/backend && node /opt/tools/node_modules/tsx/dist/cli.mjs prisma/seed.ts)
+  if ! (cd /app/backend && node /opt/tools/node_modules/tsx/dist/cli.mjs prisma/seed.ts); then
+    echo "⚠️  Seed gagal — aplikasi tetap dijalankan. Periksa SEED_* lalu set RUN_SEED=false setelah seed berhasil." >&2
+  fi
 fi
 
 # ─── Run API + nginx ──────────────────────────────────────────────────────

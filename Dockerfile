@@ -25,10 +25,16 @@ COPY frontend/package.json frontend/
 
 # Native build fallback (bcrypt/konva) + full workspace install, including the
 # devDependencies that the two `build` scripts need (tsc, vite, prisma CLI).
+#
+# `--include=dev` is required: Coolify marks NODE_ENV=production as available at
+# buildtime, and npm omits devDependencies when NODE_ENV=production regardless of
+# the lockfile. tsc, vite, the prisma CLI and every @types/* package live there,
+# so without it the build fails with "Cannot find name 'process'" /
+# "Cannot find type definition file for 'vitest/globals'".
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ openssl \
     && rm -rf /var/lib/apt/lists/* \
-    && npm ci
+    && npm ci --include=dev
 
 COPY . .
 
@@ -86,8 +92,11 @@ RUN cd backend && DATABASE_URL="postgresql://build:build@localhost:5432/build" \
 FROM node:24-bookworm-slim AS runtime
 
 # nginx: front proxy / static host. gettext-base: envsubst to render the config.
+# curl: Coolify's own health check shells out to curl/wget; without it the
+# container is reported unhealthy even when the app is up. (The Dockerfile
+# HEALTHCHECK below uses node, but Coolify replaces it with its own probe.)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends nginx gettext-base openssl \
+    && apt-get install -y --no-install-recommends nginx gettext-base openssl curl \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/nginx/sites-enabled/default
 
