@@ -10,7 +10,7 @@ import { RowActions } from '@/components/shared/RowActions';
 import { ListCapNotice } from '@/components/shared/ListCapNotice';
 import type { ListMeta } from '@/lib/list';
 import { toast } from '@/components/ui/toast-store';
-import { format } from 'date-fns';
+import { formatDateTime } from '@/lib/date';
 
 export function VisitsPage() {
   const navigate = useNavigate();
@@ -61,7 +61,7 @@ export function VisitsPage() {
       key: 'time',
       header: 'Waktu',
       render: (v: VisitItem) => (
-        <span className="text-secondary">{format(new Date(v.createdAt), 'dd MMM yyyy HH:mm')}</span>
+        <span className="text-secondary">{formatDateTime(v.createdAt)}</span>
       ),
     },
     {

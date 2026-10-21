@@ -3,7 +3,7 @@ import { dashboardApi } from './api';
 import type { DashboardSummary, RecentVerification } from './types';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/Badge';
-import { format } from 'date-fns';
+import { formatDateTime } from '@/lib/date';
 import {
   AreaChart,
   Area,
@@ -407,12 +407,10 @@ function ActivityItem({ item }: { item: RecentVerification }) {
           <span className="font-medium">{item.member?.fullName || 'Unknown'}</span>
           <span className="text-muted"> — {resultLabel[item.result] || item.result}</span>
         </p>
-        <p className="text-[11px] text-muted">
-          {item.member?.memberNumber || item.card?.cardNumber || '-'}
-        </p>
+        <p className="text-[11px] text-muted">{item.member?.memberNumber || '-'}</p>
       </div>
       <div className="text-right shrink-0">
-        <p className="text-[12px] text-secondary">{format(new Date(item.createdAt), 'HH:mm')}</p>
+        <p className="text-[12px] text-secondary">{formatDateTime(item.createdAt)}</p>
         <p className="text-[11px] text-muted">
           {methodLabel[item.scannerMethod] || item.scannerMethod}
         </p>

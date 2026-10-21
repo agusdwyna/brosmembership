@@ -9,6 +9,7 @@ import { TableToolbar, SearchInput } from '@/components/shared/TableToolbar';
 import { ListCapNotice } from '@/components/shared/ListCapNotice';
 import type { ListMeta } from '@/lib/list';
 import { toast } from '@/components/ui/toast-store';
+import { formatDateTime } from '@/lib/date';
 
 const actionOptions = [
   { value: '', label: 'Semua Aksi' },
@@ -53,7 +54,7 @@ export function ActivityTab() {
       key: 'createdAt',
       header: 'Waktu',
       render: (l: ActivityLogEntry) => (
-        <span className="text-secondary">{new Date(l.createdAt).toLocaleString('id-ID')}</span>
+        <span className="text-secondary">{formatDateTime(l.createdAt)}</span>
       ),
     },
     {

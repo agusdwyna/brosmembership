@@ -48,6 +48,52 @@ describe('RoleService.create', () => {
   });
 });
 
+describe('RoleService — retired permissions', () => {
+  it('drops card.view when creating, instead of rejecting the role', async () => {
+    (prisma.role.findUnique as any).mockResolvedValue(null);
+    (prisma.role.create as any).mockResolvedValue({
+      key: 'SUP',
+      label: 'Supervisor',
+      permissions: ['member.view'],
+    });
+
+    await service.create(
+      { key: 'SUP', label: 'Supervisor', permissions: ['member.view', 'card.view'] },
+      'admin1',
+    );
+
+    expect(prisma.role.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ permissions: ['member.view'] }),
+      }),
+    );
+  });
+
+  it('drops card.view when saving an existing role', async () => {
+    (prisma.role.findUnique as any).mockResolvedValue({
+      id: 'r1',
+      key: 'SUP',
+      label: 'Supervisor',
+      isSystem: false,
+      permissions: ['member.view', 'card.view'],
+    });
+    (prisma.role.update as any).mockResolvedValue({
+      id: 'r1',
+      key: 'SUP',
+      label: 'Supervisor',
+      permissions: ['member.view'],
+    });
+
+    await service.update('r1', { permissions: ['member.view', 'card.view'] }, 'admin1');
+
+    expect(prisma.role.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ permissions: ['member.view'] }),
+      }),
+    );
+  });
+});
+
 describe('RoleService.remove', () => {
   it('refuses to delete a system role', async () => {
     (prisma.role.findUnique as any).mockResolvedValue({

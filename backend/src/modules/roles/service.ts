@@ -1,7 +1,11 @@
 import { prisma } from '../../config/database';
 import { activityLogService } from '../activity-log/service';
 import { clearRolePermissionCache } from '../../middlewares/auth';
-import { ADMINISTRATIVE_PERMISSIONS, isPermission } from '../../lib/permissions';
+import {
+  ADMINISTRATIVE_PERMISSIONS,
+  RETIRED_PERMISSIONS,
+  isPermission,
+} from '../../lib/permissions';
 import type { CreateRoleInput, UpdateRoleInput } from './schema';
 
 // The ADMIN role must keep the permissions that let someone manage users/roles,
@@ -23,6 +27,7 @@ class RoleService {
 
   async create(input: CreateRoleInput, performedBy: string) {
     this.assertKnownPermissions(input.permissions);
+    const permissions = this.stripRetiredPermissions(input.permissions);
 
     const existing = await prisma.role.findUnique({ where: { key: input.key } });
     if (existing) throw Object.assign(new Error('Kode role sudah dipakai'), { status: 409 });
@@ -32,7 +37,7 @@ class RoleService {
         key: input.key,
         label: input.label,
         description: input.description,
-        permissions: input.permissions,
+        permissions,
       },
     });
     clearRolePermissionCache();
@@ -50,17 +55,19 @@ class RoleService {
   async update(id: string, input: UpdateRoleInput, performedBy: string) {
     const current = await this.getById(id);
 
-    if (input.permissions) {
-      this.assertKnownPermissions(input.permissions);
+    let permissions = input.permissions;
+    if (permissions) {
+      this.assertKnownPermissions(permissions);
       if (
         current.key === PROTECTED_ROLE_KEY &&
-        !ADMINISTRATIVE_PERMISSIONS.every((p) => input.permissions!.includes(p))
+        !ADMINISTRATIVE_PERMISSIONS.every((p) => permissions!.includes(p))
       ) {
         throw Object.assign(
           new Error('Role ADMIN harus tetap punya permission kelola user dan role.'),
           { status: 400 },
         );
       }
+      permissions = this.stripRetiredPermissions(permissions);
     }
 
     const role = await prisma.role.update({
@@ -68,7 +75,7 @@ class RoleService {
       data: {
         label: input.label,
         description: input.description,
-        permissions: input.permissions,
+        permissions,
       },
     });
     clearRolePermissionCache();
@@ -113,12 +120,17 @@ class RoleService {
   }
 
   private assertKnownPermissions(permissions: string[]) {
-    const unknown = permissions.filter((p) => !isPermission(p));
+    const unknown = permissions.filter((p) => !isPermission(p) && !RETIRED_PERMISSIONS.includes(p));
     if (unknown.length > 0) {
       throw Object.assign(new Error(`Permission tidak dikenal: ${unknown.join(', ')}`), {
         status: 400,
       });
     }
+  }
+
+  /** Drop permissions that are no longer in the catalog; they grant nothing. */
+  private stripRetiredPermissions(permissions: string[]) {
+    return permissions.filter((p) => !RETIRED_PERMISSIONS.includes(p));
   }
 }
 

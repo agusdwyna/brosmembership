@@ -153,6 +153,12 @@ describe('normalizeDateInput', () => {
   it('converts day-first dates', () => {
     expect(normalizeDateInput('31/01/2026')).toBe('2026-01-31');
     expect(normalizeDateInput('05-12-2025')).toBe('2025-12-05');
+    // Excel strips the leading zero when it treats a cell as a date.
+    expect(normalizeDateInput('5/12/2025')).toBe('2025-12-05');
+  });
+
+  it('leaves an out-of-range day-first value for the preview to flag', () => {
+    expect(normalizeDateInput('31/13/2026')).toBe('31/13/2026');
   });
 
   it('returns empty for blank input', () => {
@@ -168,6 +174,9 @@ describe('buildTemplateCsv', () => {
     expect(lines).toHaveLength(2);
     expect(lines[0].split(',')).toHaveLength(HEADER.length);
     expect(lines[1]).toContain('Budi Santoso');
+    // The sample uses the same dd/mm/yyyy operators see in the app.
+    expect(lines[1]).toContain('12/05/1990');
+    expect(lines[1]).toContain('01/01/2026');
   });
 
   it('round-trips through a real CSV parse', () => {
@@ -179,6 +188,8 @@ describe('buildTemplateCsv', () => {
     expect(result.fileErrors).toEqual([]);
     expect(result.rows[0].nik).toBe('3171234567890001');
     expect(result.rows[0].address).toBe('Jl. Contoh No. 1, Jakarta');
+    // Day-first input is normalised to the ISO string the API expects.
+    expect(result.rows[0].dateOfBirth).toBe('1990-05-12');
     expect(result.rows[0].startDate).toBe('2026-01-01');
   });
 });

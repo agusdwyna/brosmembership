@@ -72,6 +72,9 @@ class MemberService {
           include: {
             membershipType: true,
             cards: {
+              // Newest first: the UI treats cards[0] as the current card and
+              // lists the rest as card history.
+              orderBy: { createdAt: 'desc' },
               include: {
                 cardTemplate: {
                   include: { sides: { include: { elements: true } } },

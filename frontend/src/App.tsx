@@ -18,8 +18,6 @@ import {
 } from '@/features/membership-types/MembershipTypesPage';
 import { CardTemplatesPage } from '@/features/card-templates/CardTemplatesPage';
 import { CardTemplateEditorPage } from '@/features/card-templates/CardTemplateEditorPage';
-import { CardsPage } from '@/features/cards/CardsPage';
-import { CardDetailPage } from '@/features/cards/CardDetailPage';
 import { ScannerPage } from '@/features/scanner/ScannerPage';
 import { ScanHistoryPage } from '@/features/scan-history/ScanHistoryPage';
 import { VisitsPage } from '@/features/visits/VisitsPage';
@@ -67,7 +65,6 @@ function HomeRedirect() {
   if (hasPermission('membershipType.view')) return <Navigate to="/membership-types" replace />;
   if (hasPermission('cardTemplate.view')) return <Navigate to="/card-templates" replace />;
   if (hasPermission('scanHistory.view')) return <Navigate to="/scan-history" replace />;
-  if (hasPermission('card.view')) return <Navigate to="/cards" replace />;
   return <Navigate to="/profile" replace />;
 }
 
@@ -138,8 +135,9 @@ export function App() {
             path="card-templates/:id/edit"
             element={guard('cardTemplate.view', <CardTemplateEditorPage />)}
           />
-          <Route path="cards" element={guard('card.view', <CardsPage />)} />
-          <Route path="cards/:id" element={guard('card.view', <CardDetailPage />)} />
+          {/* Cards no longer have their own menu; old bookmarks land on the
+              member list, where every card is reachable through its member. */}
+          <Route path="cards/*" element={<Navigate to="/members" replace />} />
           <Route path="scanner" element={guard('scan.perform', <ScannerPage />)} />
           <Route path="scan-history" element={guard('scanHistory.view', <ScanHistoryPage />)} />
           <Route path="visits" element={guard('visit.view', <VisitsPage />)} />

@@ -10,6 +10,7 @@ import { TableToolbar, SearchInput } from '@/components/shared/TableToolbar';
 import { RowActions } from '@/components/shared/RowActions';
 import { useNavigate } from 'react-router-dom';
 import { format, subDays, parseISO } from 'date-fns';
+import { formatDate, formatDateTime } from '@/lib/date';
 import {
   XAxis,
   YAxis,
@@ -90,7 +91,9 @@ export function ReportsPage() {
       const key = format(parsed, 'yyyy-MM-dd');
       let entry = map.get(key);
       if (!entry) {
-        entry = { key, date: format(parsed, 'dd MMM'), valid: 0, failed: 0, visits: 0 };
+        // Axis label only (the year is constant across the range), so the
+        // chart stays readable while still reading day-first like every table.
+        entry = { key, date: formatDate(parsed).slice(0, 5), valid: 0, failed: 0, visits: 0 };
         map.set(key, entry);
       }
       return entry;
@@ -127,7 +130,6 @@ export function ReportsPage() {
       (i) =>
         i.member?.fullName?.toLowerCase().includes(q) ||
         i.member?.memberNumber?.toLowerCase().includes(q) ||
-        i.card?.cardNumber?.toLowerCase().includes(q) ||
         i.officer?.name?.toLowerCase().includes(q),
     );
   }, [report, search]);
@@ -146,13 +148,6 @@ export function ReportsPage() {
       ),
     },
     {
-      key: 'card',
-      header: 'Card',
-      render: (i: ScanHistoryReportItem) => (
-        <span className="font-mono text-secondary">{i.card?.cardNumber || '-'}</span>
-      ),
-    },
-    {
       key: 'result',
       header: 'Result',
       render: (i: ScanHistoryReportItem) => <StatusBadge status={i.result} />,
@@ -168,7 +163,7 @@ export function ReportsPage() {
       key: 'time',
       header: 'Time',
       render: (i: ScanHistoryReportItem) => (
-        <span className="text-secondary">{format(new Date(i.createdAt), 'dd MMM yyyy HH:mm')}</span>
+        <span className="text-secondary">{formatDateTime(i.createdAt)}</span>
       ),
     },
     {
@@ -219,7 +214,7 @@ export function ReportsPage() {
       key: 'time',
       header: 'Waktu',
       render: (v: VisitReportItem) => (
-        <span className="text-secondary">{format(new Date(v.createdAt), 'dd MMM yyyy HH:mm')}</span>
+        <span className="text-secondary">{formatDateTime(v.createdAt)}</span>
       ),
     },
     {

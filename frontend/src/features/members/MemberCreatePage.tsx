@@ -5,6 +5,7 @@ import { membersApi } from './api';
 import type { CreateMemberInput } from './types';
 import { createMemberSchema } from './validation';
 import { useFormErrors } from '@/lib/use-form-error';
+import { formatDate, toDateInputValue } from '@/lib/date';
 import { membershipTypesApi } from '@/features/membership-types/api';
 import type { MembershipType } from '@/features/membership-types/types';
 import { companiesApi } from '@/features/companies/api';
@@ -32,7 +33,9 @@ export function MemberCreatePage() {
     dateOfBirth: '',
     companyId: '',
     membershipTypeId: '',
-    startDate: new Date().toISOString().split('T')[0],
+    // `<input type="date">` needs a plain YYYY-MM-DD string, formatted locally
+    // (`toISOString()` is UTC and reads as yesterday before 07:00 WIB).
+    startDate: toDateInputValue(new Date()),
   });
 
   useEffect(() => {
@@ -188,13 +191,7 @@ export function MemberCreatePage() {
             {endDate && (
               <div className="mt-3 bg-bg rounded-[4px] px-4 py-3 text-[13px]">
                 <span className="text-secondary">Berakhir: </span>
-                <span className="font-medium">
-                  {endDate.toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </span>
+                <span className="font-medium">{formatDate(endDate)}</span>
               </div>
             )}
           </CardContent>

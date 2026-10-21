@@ -14,7 +14,7 @@ import type { MembershipType } from '@/features/membership-types/types';
 import { companiesApi } from '@/features/companies/api';
 import type { Company } from '@/features/companies/types';
 import { membershipsApi } from '@/features/memberships/api';
-import { CardPreview } from '@/features/cards/components/CardPreview';
+import { CardPreview } from './components/CardPreview';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -28,7 +28,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/toast-store';
 import { getErrorMessage } from '@/lib/error';
 import { RotateCcw, Ban, ArrowRightLeft, Clock, Pencil, Printer, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDate, formatDateTime, toDateInputValue } from '@/lib/date';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
   ASSIGN: <RotateCcw className="w-3.5 h-3.5" />,
@@ -165,7 +165,7 @@ export function MemberDetailPage() {
       phone: member.phone || '',
       email: member.email || '',
       address: member.address || '',
-      dateOfBirth: member.dateOfBirth ? member.dateOfBirth.split('T')[0] : '',
+      dateOfBirth: toDateInputValue(member.dateOfBirth),
       companyId: member.companyId || '',
     });
     clearAll();
@@ -301,8 +301,7 @@ export function MemberDetailPage() {
       header: 'Period',
       render: (ms: Membership) => (
         <span className="text-secondary">
-          {format(new Date(ms.startDate), 'dd MMM yyyy')} —{' '}
-          {format(new Date(ms.endDate), 'dd MMM yyyy')}
+          {formatDate(ms.startDate)} — {formatDate(ms.endDate)}
         </span>
       ),
     },
@@ -459,7 +458,7 @@ export function MemberDetailPage() {
                 </div>
                 <div>
                   <span className="text-muted">Born:</span>{' '}
-                  {member.dateOfBirth ? format(new Date(member.dateOfBirth), 'dd MMM yyyy') : '-'}
+                  {member.dateOfBirth ? formatDate(member.dateOfBirth) : '-'}
                 </div>
                 <div>
                   <span className="text-muted">Company:</span> {member.company?.name || '-'}
@@ -493,11 +492,10 @@ export function MemberDetailPage() {
                 </div>
                 <div>
                   <span className="text-muted">Start:</span>{' '}
-                  {format(new Date(currentMembership.startDate), 'dd MMM yyyy')}
+                  {formatDate(currentMembership.startDate)}
                 </div>
                 <div>
-                  <span className="text-muted">End:</span>{' '}
-                  {format(new Date(currentMembership.endDate), 'dd MMM yyyy')}
+                  <span className="text-muted">End:</span> {formatDate(currentMembership.endDate)}
                 </div>
                 {currentMembership.status === 'ACTIVE' && (
                   <div className="flex flex-wrap gap-2 pt-2">
@@ -567,8 +565,11 @@ export function MemberDetailPage() {
                     <span className="font-mono">{currentCard.cardNumber}</span>
                   </div>
                   <div>
-                    <span className="text-muted">Issued:</span>{' '}
-                    {format(new Date(currentCard.issuedAt), 'dd MMM yyyy')}
+                    <span className="text-muted">Template:</span>{' '}
+                    {currentCard.cardTemplate?.name || '-'} (v{currentCard.templateVersion})
+                  </div>
+                  <div>
+                    <span className="text-muted">Issued:</span> {formatDate(currentCard.issuedAt)}
                   </div>
                 </div>
                 {currentCard.cardTemplate && (
@@ -614,6 +615,30 @@ export function MemberDetailPage() {
                     </Button>
                   </>
                 )}
+
+                {/* Renew/change-type issue a new card on the same membership, so
+                    older cards stay here as history instead of a separate page. */}
+                {currentMembership.cards.length > 1 && (
+                  <div className="pt-1">
+                    <p className="text-[12px] font-medium text-muted mb-2">Riwayat Kartu</p>
+                    <div className="divide-y divide-border text-[12px]">
+                      {currentMembership.cards.map((c, index) => (
+                        <div key={c.id} className="flex items-center justify-between py-1.5 gap-3">
+                          <span className="font-mono flex items-center gap-2">
+                            {c.cardNumber}
+                            {index === 0 && (
+                              <span className="font-sans text-[11px] text-success">Aktif</span>
+                            )}
+                          </span>
+                          <span className="text-muted truncate">
+                            {c.cardTemplate?.name || '-'} (v{c.templateVersion})
+                          </span>
+                          <span className="text-secondary shrink-0">{formatDate(c.issuedAt)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-[13px] text-muted">No card</p>
@@ -651,7 +676,7 @@ export function MemberDetailPage() {
                         <span className="text-[11px] text-muted">{log.officer.name}</span>
                         <span className="text-[11px] text-muted">•</span>
                         <span className="text-[11px] text-muted">
-                          {format(new Date(log.createdAt), 'dd MMM yyyy HH:mm')}
+                          {formatDateTime(log.createdAt)}
                         </span>
                       </div>
                     </div>
@@ -683,7 +708,7 @@ export function MemberDetailPage() {
                   <div key={v.id} className="flex items-center justify-between px-5 py-3">
                     <div className="flex items-center gap-2 text-[13px] text-foreground">
                       <Clock className="w-3.5 h-3.5 text-muted" />
-                      {format(new Date(v.createdAt), 'dd MMM yyyy HH:mm')}
+                      {formatDateTime(v.createdAt)}
                     </div>
                     <span className="text-[11px] text-muted">{v.officer?.name}</span>
                   </div>

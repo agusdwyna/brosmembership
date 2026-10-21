@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/date';
 import { generateQRDataURL } from '@/lib/qr';
-import type { MembershipCard } from '@/features/cards/types';
+import type { MembershipCard } from '@/features/members/card-types';
 
 // A4 dimensions in mm
 const A4_WIDTH = 210;
@@ -97,7 +97,7 @@ function elementText(card: MembershipCard, type: string): string {
     case 'MEMBERSHIP_NAME':
       return card.membership.membershipType.name ?? '';
     case 'EXPIRY_DATE':
-      return `Valid until ${format(new Date(card.membership.endDate), 'dd MMM yyyy')}`;
+      return `Berlaku s/d ${formatDate(card.membership.endDate)}`;
     default:
       return '';
   }

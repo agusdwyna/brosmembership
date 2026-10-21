@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { generateQRDataURL } from '@/lib/qr';
 import { toast } from '@/components/ui/toast-store';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/date';
 import type { VerifyResponse } from '../types';
 
 const CARD_WIDTH = 300;
@@ -41,9 +41,7 @@ export function ScannerCardPreview({ card, member, membership }: ScannerCardPrev
       case 'MEMBERSHIP_NAME':
         return membership?.typeName || '';
       case 'EXPIRY_DATE':
-        return membership
-          ? `Valid until ${format(new Date(membership.endDate), 'dd MMM yyyy')}`
-          : '';
+        return membership ? `Berlaku s/d ${formatDate(membership.endDate)}` : '';
       case 'QR_CODE':
         return qrUrl ? <img src={qrUrl} alt="QR" className="w-full h-full object-contain" /> : null;
       default:
@@ -98,7 +96,7 @@ export function ScannerCardPreview({ card, member, membership }: ScannerCardPrev
               <div className="text-[13px] font-medium">{membership?.typeName}</div>
               {membership && (
                 <div className="text-[11px] opacity-70">
-                  Valid until {format(new Date(membership.endDate), 'dd MMM yyyy')}
+                  Berlaku s/d {formatDate(membership.endDate)}
                 </div>
               )}
             </div>

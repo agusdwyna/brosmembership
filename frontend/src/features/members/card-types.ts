@@ -1,3 +1,9 @@
+/**
+ * A card as returned by the card-aware endpoints (member detail, scanner,
+ * template preview). Cards are issued per membership and are never browsed on
+ * their own — they are shown inside the member they belong to, which is why
+ * this shape lives with the member feature.
+ */
 export interface MembershipCard {
   id: string;
   membershipId: string;

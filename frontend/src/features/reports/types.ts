@@ -23,6 +23,5 @@ export interface ScanHistoryReportItem {
   scannerMethod: string;
   createdAt: string;
   member?: { id: string; memberNumber: string; fullName: string } | null;
-  card?: { cardNumber: string } | null;
   officer: { name: string };
 }

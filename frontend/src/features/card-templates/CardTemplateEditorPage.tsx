@@ -1,10 +1,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { cardTemplatesApi } from './api';
-import type { CardTemplateElement, CardTemplateSide, ElementType, SideType } from './types';
+import type {
+  CardTemplate,
+  CardTemplateElement,
+  CardTemplateSide,
+  ElementType,
+  SideType,
+} from './types';
 import { CardCanvas, CARD_WIDTH, CARD_HEIGHT } from './components/CardCanvas';
 import { ComponentPalette } from './components/ComponentPalette';
 import { PropertyEditor } from './components/PropertyEditor';
+import { TemplatePreviewModal } from './components/TemplatePreviewModal';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -13,7 +20,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { StatusBadge } from '@/components/ui/Badge';
 import { toast } from '@/components/ui/toast-store';
 import { getErrorMessage } from '@/lib/error';
-import { Upload, Save } from 'lucide-react';
+import { Upload, Save, Eye } from 'lucide-react';
 
 let nextId = 1;
 function genId() {
@@ -42,6 +49,7 @@ export function CardTemplateEditorPage() {
   const [templateStatus, setTemplateStatus] = useState('ACTIVE');
   const [confirmAction, setConfirmAction] = useState<'deactivate' | 'activate' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Load existing template
   useEffect(() => {
@@ -243,6 +251,20 @@ export function CardTemplateEditorPage() {
 
   const bgImage = currentSide.designUrl || null;
 
+  /**
+   * Preview the editor's live state, not the saved template: operators need to
+   * see a moved/resized element before committing, and the unsaved element ids
+   * (`el-…`) are stripped by the preview mapper.
+   */
+  const previewTemplate: CardTemplate = {
+    id: templateDbId ?? 'preview',
+    name: name || 'Untitled',
+    status: templateStatus,
+    sides,
+    createdAt: '',
+    updatedAt: '',
+  };
+
   return (
     <div>
       <PageHeader
@@ -269,6 +291,9 @@ export function CardTemplateEditorPage() {
                 )}
               </>
             )}
+            <Button variant="secondary" onClick={() => setPreviewOpen(true)}>
+              <Eye className="w-4 h-4" /> Pratinjau
+            </Button>
             <Button variant="secondary" onClick={() => navigate('/card-templates')}>
               Batal
             </Button>
@@ -369,6 +394,14 @@ export function CardTemplateEditorPage() {
         variant={confirmAction === 'deactivate' ? 'danger' : 'primary'}
         loading={actionLoading}
       />
+
+      {previewOpen && (
+        <TemplatePreviewModal
+          template={previewTemplate}
+          initialSide={activeSide}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </div>
   );
 }

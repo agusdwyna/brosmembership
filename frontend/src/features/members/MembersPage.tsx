@@ -17,8 +17,8 @@ import { toast } from '@/components/ui/toast-store';
 import { exportCardsToPDF } from '@/lib/pdf-export';
 import { useCan } from '@/lib/use-permission';
 import { Plus, FileDown, FileSpreadsheet, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
-import type { MembershipCard } from '@/features/cards/types';
+import { formatDate } from '@/lib/date';
+import type { MembershipCard } from './card-types';
 
 export function MembersPage() {
   const navigate = useNavigate();
@@ -170,9 +170,7 @@ export function MembersPage() {
         return ms ? (
           <div>
             <div>{ms.membershipType.name}</div>
-            <div className="text-[12px] text-muted">
-              s/d {format(new Date(ms.endDate), 'dd MMM yyyy')}
-            </div>
+            <div className="text-[12px] text-muted">s/d {formatDate(ms.endDate)}</div>
           </div>
         ) : (
           <span className="text-muted">-</span>
@@ -187,9 +185,7 @@ export function MembersPage() {
     {
       key: 'created',
       header: 'Terdaftar',
-      render: (m: Member) => (
-        <span className="text-secondary">{format(new Date(m.createdAt), 'dd MMM yyyy')}</span>
-      ),
+      render: (m: Member) => <span className="text-secondary">{formatDate(m.createdAt)}</span>,
     },
     {
       key: 'actions',

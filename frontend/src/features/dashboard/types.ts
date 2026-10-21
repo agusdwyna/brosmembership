@@ -24,7 +24,6 @@ export interface RecentVerification {
   createdAt: string;
   member?: { memberNumber: string; fullName: string };
   membership?: { status: string };
-  card?: { cardNumber: string };
   officer: { name: string };
 }
 

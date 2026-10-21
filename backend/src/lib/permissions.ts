@@ -11,7 +11,6 @@ export const PERMISSIONS = {
   membershipType: ['view', 'create', 'edit', 'manage'],
   membership: ['view', 'manage'],
   cardTemplate: ['view', 'manage'],
-  card: ['view'],
   scan: ['perform'],
   visit: ['view', 'create'],
   scanHistory: ['view'],
@@ -31,6 +30,13 @@ export const ALL_PERMISSIONS: string[] = Object.entries(PERMISSIONS).flatMap(([m
 );
 
 export const isPermission = (value: string): boolean => ALL_PERMISSIONS.includes(value);
+
+/**
+ * Permissions removed from the catalog but still stored on roles. They no longer
+ * grant anything; they are dropped (instead of rejected) when a role is saved so
+ * an existing custom role stays editable.
+ */
+export const RETIRED_PERMISSIONS = ['card.view'];
 
 /** Permissions that gate user/role administration — used by the last-admin guard. */
 export const ADMINISTRATIVE_PERMISSIONS = ['user.manage', 'role.manage'];

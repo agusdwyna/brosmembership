@@ -9,7 +9,7 @@ import { visitsApi } from '@/features/visits/api';
 import { toast } from '@/components/ui/toast-store';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CalendarCheck, CheckCircle2, XCircle, Keyboard, Usb, Camera, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDate } from '@/lib/date';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -287,7 +287,7 @@ export function ScannerPage() {
                     </p>
                     {result.result === 'VALID' ? (
                       <p className="text-[13px] text-success">
-                        Valid until {format(new Date(result.membership.endDate), 'dd MMM yyyy')}
+                        Berlaku s/d {formatDate(result.membership.endDate)}
                       </p>
                     ) : (
                       <p className="text-[13px] text-danger">{result.reason}</p>

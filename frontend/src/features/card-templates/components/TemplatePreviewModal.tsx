@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
-import { addYears, format } from 'date-fns';
+import { useEffect, useMemo, useState } from 'react';
+import { addYears } from 'date-fns';
+import { formatDate } from '@/lib/date';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { CardPreview } from '@/features/cards/components/CardPreview';
-import type { MembershipCard } from '@/features/cards/types';
+import { CardPreview } from '@/features/members/components/CardPreview';
+import type { MembershipCard } from '@/features/members/card-types';
 import type { CardTemplate, SideType } from '../types';
 
 /**
@@ -26,10 +27,22 @@ const SCALE = 1.3;
 interface TemplatePreviewModalProps {
   template: CardTemplate | null;
   onClose: () => void;
+  /** Side to show first — the editor passes the side being edited. */
+  initialSide?: SideType;
 }
 
-export function TemplatePreviewModal({ template, onClose }: TemplatePreviewModalProps) {
-  const [side, setSide] = useState<SideType>('FRONT');
+export function TemplatePreviewModal({
+  template,
+  onClose,
+  initialSide = 'FRONT',
+}: TemplatePreviewModalProps) {
+  const [side, setSide] = useState<SideType>(initialSide);
+
+  // Reopening for another template (or another editor side) must not inherit
+  // the previous selection.
+  useEffect(() => {
+    setSide(initialSide);
+  }, [initialSide, template?.id]);
 
   /**
    * Templates are not cards, so a card-shaped object is synthesised for
@@ -113,15 +126,13 @@ export function TemplatePreviewModal({ template, onClose }: TemplatePreviewModal
               </button>
             ))}
           </div>
-          <span className="text-[12px] text-muted">
-            Data contoh — {format(new Date(), 'dd MMM yyyy')}
-          </span>
+          <span className="text-[12px] text-muted">Data contoh — {formatDate(new Date())}</span>
         </div>
 
         {!activeSide || activeSide.elements.length === 0 ? (
           <EmptyState
             title={side === 'FRONT' ? 'Sisi depan belum diatur' : 'Sisi belakang belum diatur'}
-            description="Tambahkan elemen lewat menu Ubah template untuk melihat hasilnya di sini."
+            description="Tambahkan elemen lewat panel komponen di sebelah kiri, lalu pratinjau lagi."
           />
         ) : (
           // The renderer is fixed at 400×250; the wrapper reserves the scaled

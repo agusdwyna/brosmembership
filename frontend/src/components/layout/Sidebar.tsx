@@ -9,7 +9,6 @@ import {
   Settings,
   Layers,
   ListChecks,
-  CreditCard,
   CalendarCheck,
   X,
 } from 'lucide-react';
@@ -56,7 +55,6 @@ const navSections: NavSection[] = [
         permission: 'membershipType.view',
       },
       { to: '/card-templates', icon: Layers, label: 'Templates', permission: 'cardTemplate.view' },
-      { to: '/cards', icon: CreditCard, label: 'Kartu', permission: 'card.view' },
     ],
   },
   {

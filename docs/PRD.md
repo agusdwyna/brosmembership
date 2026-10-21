@@ -709,35 +709,24 @@ Edit
 
 Renew membership
 
-Revoke card
-
-Replace card
+Change membership type
 
 Print card
 
 23. Card Management
 
-Fitur:
+Kartu tidak punya menu tersendiri. Kartu diterbitkan otomatis saat member
+didaftarkan (dan saat renewal/change-type) dan dikelola dari halaman Member:
 
-List
+Current Card (nomor, template + versi, tanggal terbit)
 
-Search/filter
-
-Detail
-
-Preview
+Preview depan/belakang
 
 Print
 
-Reprint
+Card History
 
-Revoke
-
-Replace
-
-History
-
-Card lama tidak dihapus ketika diganti.
+Card lama tidak dihapus ketika diterbitkan kartu baru.
 
 24. UI/UX
 
@@ -953,11 +942,6 @@ POST   /api/memberships/:id/cancel
 GET    /api/card-templates
 POST   /api/card-templates
 PUT    /api/card-templates/:id
-
-GET    /api/cards
-GET    /api/cards/:id
-POST   /api/cards/:id/revoke
-POST   /api/cards/:id/replace
 
 POST   /api/scanner/verify
 GET    /api/scan-history

@@ -128,7 +128,15 @@ export function normalizeDateInput(value: RawCell): string {
   if (iso) return `${iso[1]}-${pad(Number(iso[2]))}-${pad(Number(iso[3]))}`;
 
   const dayFirst = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(text);
-  if (dayFirst) return `${dayFirst[3]}-${pad(Number(dayFirst[2]))}-${pad(Number(dayFirst[1]))}`;
+  if (dayFirst) {
+    // Excel silently drops a zero-padded day (01/01/2026 → 1/1/2026), so values
+    // are normalised here. An out-of-range part (e.g. 31/13/2026) is passed
+    // through unchanged so the preview flags it instead of inventing a date.
+    const day = Number(dayFirst[1]);
+    const month = Number(dayFirst[2]);
+    if (day < 1 || day > 31 || month < 1 || month > 12) return text;
+    return `${dayFirst[3]}-${pad(month)}-${pad(day)}`;
+  }
 
   // Unrecognised: pass through so the row is flagged during preview validation
   // instead of silently turning into an empty date.
@@ -245,10 +253,11 @@ const TEMPLATE_SAMPLE = [
   '081234567890',
   'budi@contoh.com',
   'Jl. Contoh No. 1, Jakarta',
-  '1990-05-12',
+  // Day-first, matching the dd/mm/yyyy the app displays. ISO is still accepted.
+  '12/05/1990',
   'BROS',
   'GOLD',
-  '2026-01-01',
+  '01/01/2026',
 ];
 
 /** Quote a CSV cell only when it needs it (comma, quote, or newline). */

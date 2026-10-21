@@ -30,7 +30,6 @@ export const PERMISSION_CATALOG: PermissionModule[] = [
   },
   { module: 'membership', label: 'Membership', actions: [VIEW, MANAGE] },
   { module: 'cardTemplate', label: 'Template Kartu', actions: [VIEW, MANAGE] },
-  { module: 'card', label: 'Kartu', actions: [VIEW] },
   { module: 'scan', label: 'Scanner', actions: [{ key: 'perform', label: 'Lakukan scan' }] },
   { module: 'visit', label: 'Kunjungan', actions: [VIEW, CREATE] },
   { module: 'scanHistory', label: 'Riwayat Scan', actions: [VIEW] },

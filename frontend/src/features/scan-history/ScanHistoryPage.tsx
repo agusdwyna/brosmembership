@@ -12,7 +12,7 @@ import { RowActions } from '@/components/shared/RowActions';
 import { ListCapNotice } from '@/components/shared/ListCapNotice';
 import type { ListMeta } from '@/lib/list';
 import { toast } from '@/components/ui/toast-store';
-import { format } from 'date-fns';
+import { formatDateTime } from '@/lib/date';
 
 export function ScanHistoryPage() {
   const navigate = useNavigate();
@@ -78,7 +78,7 @@ export function ScanHistoryPage() {
       key: 'time',
       header: 'Waktu',
       render: (i: ScanHistoryItem) => (
-        <span className="text-secondary">{format(new Date(i.createdAt), 'dd MMM yyyy HH:mm')}</span>
+        <span className="text-secondary">{formatDateTime(i.createdAt)}</span>
       ),
     },
     {

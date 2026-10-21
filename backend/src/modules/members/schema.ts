@@ -49,7 +49,10 @@ const importDate = (label: string) =>
     .string()
     .min(1, `${label} wajib diisi`)
     .transform((v) => new Date(v))
-    .refine((d) => !Number.isNaN(d.getTime()), `${label} tidak valid (gunakan YYYY-MM-DD)`);
+    .refine(
+      (d) => !Number.isNaN(d.getTime()),
+      `${label} tidak valid (gunakan DD/MM/YYYY atau YYYY-MM-DD)`,
+    );
 
 /**
  * One spreadsheet row as sent by the import preview. Mirrors `createMemberSchema`
