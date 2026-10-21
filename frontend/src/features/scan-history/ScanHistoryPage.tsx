@@ -46,7 +46,7 @@ export function ScanHistoryPage() {
         (i) =>
           i.member?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
           i.member?.memberNumber?.toLowerCase().includes(search.toLowerCase()) ||
-          i.member?.nik?.toLowerCase().includes(search.toLowerCase()) ||
+          i.member?.nikLast4?.includes(search.trim()) ||
           i.officer?.name?.toLowerCase().includes(search.toLowerCase()),
       )
     : items;
@@ -115,7 +115,7 @@ export function ScanHistoryPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Cari member, NIK, petugas..."
+            placeholder="Cari member, 4 digit NIK, petugas..."
           />
           <div className="w-40">
             <Select

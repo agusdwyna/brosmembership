@@ -33,6 +33,8 @@ class MemberController {
 
   async importMany(req: Request, res: Response, next: NextFunction) {
     try {
+      // The rows are validated individually inside the service, so a malformed
+      // line is skipped and reported instead of failing the whole batch.
       const data = await memberService.importMany(req.body.rows, req.user!.id);
       res.json({ data });
     } catch (err) {

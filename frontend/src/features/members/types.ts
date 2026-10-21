@@ -1,7 +1,8 @@
 export interface Member {
   id: string;
   memberNumber: string;
-  nik: string | null;
+  /** Last four digits only — the full NIK is never returned by the API. */
+  nikLast4: string | null;
   qrHash: string | null;
   fullName: string;
   phone?: string | null;
@@ -85,6 +86,7 @@ export interface CreateMemberInput {
 
 export interface UpdateMemberInput {
   fullName?: string;
+  /** Send only to replace the stored NIK; omit it to keep the current one. */
   nik?: string;
   phone?: string;
   email?: string;

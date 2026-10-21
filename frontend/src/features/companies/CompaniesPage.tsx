@@ -199,7 +199,10 @@ export function CompaniesPage() {
 export function CompanyFormPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const isNew = id === 'new';
+  // "Tambah" is its own route (`/companies/new`) and carries no `:id`, while
+  // editing is `/companies/:id/edit`. Without the `!id` check the form treated
+  // the create screen as an edit and submitted `PUT /companies/undefined`.
+  const isNew = !id || id === 'new';
   const [form, setForm] = useState<CreateCompanyInput>({
     code: '',
     name: '',

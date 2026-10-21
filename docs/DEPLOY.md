@@ -48,7 +48,7 @@ relatif — tidak perlu domain terpisah, CORS, atau `VITE_API_URL`.
 | `Dockerfile` | Multi-stage: builder (npm ci + build) → runtime (nginx + node, dependency produksi saja) |
 | `.dockerignore` | Mengecilkan build context dan mencegah `.env`/secret masuk ke image |
 | `docker/nginx.conf.template` | Konfigurasi nginx; `$PORT` dan `$API_PORT` dirender saat container start |
-| `docker/docker-entrypoint.sh` | Render nginx → `prisma migrate deploy` (dengan retry) → seed opsional → jalankan nginx + API |
+| `docker/docker-entrypoint.sh` | Render nginx → `prisma migrate deploy` (dengan retry) → backfill hash NIK → seed opsional → jalankan nginx + API |
 | `docker-compose.yml` | Opsional, untuk build pack **Docker Compose** |
 | `docs/DEPLOY.md` | Dokumen ini |
 
@@ -99,6 +99,7 @@ proses container saat start.
 |----------|-------|
 | `DATABASE_URL` | Internal URL PostgreSQL dari langkah 2 |
 | `JWT_SECRET` | String acak kuat, mis. hasil `openssl rand -hex 32` |
+| `NIK_HASH_KEY` | Kunci HMAC untuk hash NIK, min. 32 karakter (`openssl rand -hex 32`). **Jangan diubah setelah ada member** — semua hash NIK lama tidak akan cocok lagi |
 
 ### Salin-tempel (sesuaikan nilainya)
 
@@ -110,6 +111,7 @@ API_PREFIX=/api
 
 DATABASE_URL=postgresql://postgres:PASSWORD@postgresql-xxxxx:5432/bros_membership
 JWT_SECRET=ganti-dengan-hasil-openssl-rand-hex-32
+NIK_HASH_KEY=ganti-dengan-hasil-openssl-rand-hex-32
 
 JWT_EXPIRES_IN=1d
 JWT_REFRESH_EXPIRES_IN=7d
@@ -123,13 +125,18 @@ TRUST_PROXY=2
 # Migrasi otomatis saat container start.
 RUN_MIGRATIONS=true
 
-# Deploy PERTAMA saja: true. Setelah seed berhasil, ubah menjadi false.
+# Cukup sekali per database: seed menulis penanda `seed.version`, sehingga
+# redeploy berikutnya otomatis dilewati walau nilai ini masih true.
 RUN_SEED=true
 SEED_ADMIN_EMAIL=admin@domain-anda.com
 SEED_ADMIN_PASSWORD=password-kuat-admin
 # Opsional — kosongkan bila tidak perlu akun officer awal.
 # SEED_OFFICER_EMAIL=officer@domain-anda.com
 # SEED_OFFICER_PASSWORD=password-kuat-officer
+
+# Hanya bila memang ingin menjalankan seed lagi (mis. menyegarkan permission
+# role bawaan setelah update aplikasi). Kosongkan setelah selesai.
+# SEED_FORCE=false
 ```
 
 ### Catatan penting
@@ -143,9 +150,17 @@ SEED_ADMIN_PASSWORD=password-kuat-admin
   dalam container. Jika hanya `1`, semua request terlihat berasal dari IP proxy.
   Tambahkan satu lagi (mis. `3`) bila di depan Coolify masih ada Cloudflare/proxy
   lain.
-- **`RUN_SEED=true` hanya untuk deploy pertama.** Seed memakai upsert, tetapi
-  seed juga mengembalikan izin role sistem (`ADMIN`, `OFFICER`) ke default.
-  Set `false` setelah berhasil agar perubahan izin dari UI tidak tertimpa.
+- **Seed berjalan maksimal sekali per database.** Seed menulis penanda
+  `seed.version` di tabel `settings`; entrypoint memeriksanya lebih dulu, jadi
+  `RUN_SEED=true` yang lupa dimatikan **tidak** akan membuat ulang company,
+  tipe membership, template, akun, atau role yang sudah Anda hapus.
+  Tetap disarankan set `false` setelah deploy pertama.
+- **`SEED_FORCE=true`** memaksa seed berjalan lagi. Gunakan hanya bila perlu
+  menyegarkan permission role bawaan (`IT_GOD`/`ADMIN`/`OFFICER`) setelah
+  update aplikasi — data lain juga akan di-upsert (bukan diduplikasi), tetapi
+  item yang sudah dihapus akan muncul kembali.
+- Seed **tidak mengembalikan izin role kustom**; hanya role bawaan yang
+  disinkronkan.
 - **Hanya `SEED_ADMIN_PASSWORD` yang wajib.** `SEED_OFFICER_PASSWORD` opsional —
   biarkan kosong dan akun officer dilewati; buat officer lewat menu pengguna.
   Seed yang gagal tidak menghentikan container (hanya ditulis di log).
@@ -199,14 +214,31 @@ gagal cepat bila variabel wajib belum diisi.
    ```
    ▶ Menyiapkan konfigurasi nginx
    ▶ Menerapkan migrasi database (prisma migrate deploy)
+   ▶ Memeriksa backfill NIK…
    ▶ Seeding database
    ▶ Menjalankan nginx
    ▶ Menjalankan API (node dist/index.js)
    ```
+
+   Pada deploy pertama setelah update privasi NIK, log akan menampilkan
+   `Backfill NIK: N member …` lalu `kolom plaintext "nik" dihapus`. Setelah itu
+   langkah ini otomatis dilewati.
 3. Buka domain → login dengan `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
 4. Kembali ke **Environment Variables** → ubah `RUN_SEED=false` → **Save**.
+   (Kalau lupa pun aman: penanda `seed.version` membuat seed dilewati.)
 5. (Disarankan) hapus `SEED_ADMIN_PASSWORD` dan `SEED_OFFICER_PASSWORD` dari
    environment, atau biarkan dengan nilai kuat.
+
+> **Database yang dibangun sebelum ada penanda seed** belum punya baris
+> `seed.version`. Saat redeploy pertama dengan versi ini, seed akan jalan sekali
+> lagi. Setelah itu aman. Untuk mencegahnya, tambahkan penanda lebih dulu di
+> database (SQL editor Coolify):
+>
+> ```sql
+> INSERT INTO settings (key, value, "updatedAt")
+> VALUES ('seed.version', '1', now())
+> ON CONFLICT (key) DO UPDATE SET value = '1', "updatedAt" = now();
+> ```
 
 ---
 
@@ -231,10 +263,14 @@ member, membership, kunjungan, dan log tidak hilang.
 | Gejala | Penyebab umum | Solusi |
 |--------|----------------|--------|
 | Deploy gagal: `JWT_SECRET wajib diisi…` | Secret kosong/pakai nilai default | Isi `JWT_SECRET` dengan string acak kuat |
+| Deploy gagal: `NIK_HASH_KEY wajib diisi…` | Kunci hash NIK kosong/terlalu pendek | Isi `NIK_HASH_KEY` dengan `openssl rand -hex 32` |
+| Scan via NIK / cek duplikat berhenti cocok setelah ganti env | `NIK_HASH_KEY` diubah | Kembalikan kunci lama. Hash lama tidak bisa dipulihkan dengan kunci baru |
 | Migrasi gagal / `P1001: Can't reach database server` | `DATABASE_URL` salah atau DB beda network | Salin internal URL dari resource PostgreSQL; pastikan satu project/environment |
 | `P1000` / authentication failed | Password salah atau karakter khusus tidak di-encode | URL-encode password, cek user/database |
 | Deploy berhenti di `Menunggu database siap` | DB belum selesai start | Entrypoint retry ±45 detik; cek status DB lalu redeploy |
 | Seed gagal: `SEED_ADMIN_PASSWORD … wajib diisi` | `RUN_SEED=true` tanpa password admin | Isi `SEED_ADMIN_PASSWORD`. Officer opsional |
+| Data seed (company, tipe, template) muncul lagi setelah redeploy | `RUN_SEED=true` menetap dan versi lama menjalankan seed setiap start | Versi ini punya penanda `seed.version`; set `RUN_SEED=false`. Untuk DB lama, tambahkan penanda manual (lihat bagian 5) |
+| Ingin menyegarkan permission role bawaan setelah update | — | Set `SEED_FORCE=true` sekali, lalu kosongkan lagi |
 | Container restart berulang setelah seed gagal | Entrypoint lama berhenti saat seed error | Sudah diperbaiki: seed gagal hanya di-log, app tetap jalan |
 | App jalan tapi 502 dari domain | Container belum siap / port salah | Cek log container; pastikan **Ports Exposes = 80** dan `PORT=80` |
 | Upload gambar hilang setelah redeploy | Volume belum dipasang | Tambahkan volume ke `/app/backend/uploads` |

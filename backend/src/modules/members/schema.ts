@@ -22,6 +22,8 @@ export const createMemberSchema = z.object({
 
 export const updateMemberSchema = z.object({
   fullName: z.string().min(2).optional(),
+  // Optional on update: the form cannot show the stored NIK, so it sends this
+  // only when the operator explicitly replaces it. Omitting it keeps the hash.
   nik: z
     .string()
     .min(16, 'NIK harus 16 digit')
@@ -77,11 +79,17 @@ export const importMemberRowSchema = z.object({
   startDate: importDate('Tanggal mulai'),
 });
 
+/**
+ * Envelope for a bulk import. The rows are deliberately NOT validated here:
+ * one malformed row must not reject the whole batch. Only the shape is checked
+ * (an array of objects), and `importMany` validates each row individually so a
+ * bad line is reported and skipped while the rest are saved.
+ */
 export const importMembersSchema = z.object({
   // Capped: every row is its own transaction plus activity log, and the whole
   // request has to finish within nginx's 60s proxy_read_timeout.
   rows: z
-    .array(importMemberRowSchema)
+    .array(z.record(z.string(), z.unknown()))
     .min(1, 'Tidak ada baris untuk diimport')
     .max(500, 'Maksimal 500 baris per import'),
 });

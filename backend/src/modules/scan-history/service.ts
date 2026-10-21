@@ -18,7 +18,7 @@ class ScanHistoryService {
     return prisma.scanHistory.findMany({
       where,
       include: {
-        member: { select: { id: true, memberNumber: true, nik: true, fullName: true } },
+        member: { select: { id: true, memberNumber: true, nikLast4: true, fullName: true } },
         membership: { select: { id: true, status: true } },
         officer: { select: { id: true, name: true } },
       },

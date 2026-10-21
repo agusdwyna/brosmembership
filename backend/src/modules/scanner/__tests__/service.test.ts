@@ -23,6 +23,7 @@ vi.mock('../../../modules/activity-log/service', () => ({
 }));
 
 import { prisma } from '../../../config/database';
+import { hashNik } from '../../../lib/nik';
 import { ScannerService } from '../service';
 
 const service = new ScannerService();
@@ -30,7 +31,7 @@ const service = new ScannerService();
 const mockMember = {
   id: 'm1',
   memberNumber: 'MB-001',
-  nik: null,
+  nikLast4: '0123',
   qrHash: 'tok_xxx',
   fullName: 'Agus',
   status: 'ACTIVE',
@@ -187,5 +188,26 @@ describe('ScannerService.verify', () => {
     expect(prisma.member.findUnique).toHaveBeenCalledWith({
       where: { qrHash: 'MB-001' },
     });
+  });
+
+  it('resolves a typed NIK through its HMAC, never the plaintext', async () => {
+    // Earlier lookups miss so the NIK branch runs.
+    (prisma.member.findUnique as any)
+      .mockResolvedValueOnce(null) // qrHash
+      .mockResolvedValueOnce(null) // memberNumber
+      .mockResolvedValueOnce(mockMember); // nikHash
+
+    await service.verify({ token: '3201234567890123', scannerMethod: 'MANUAL' }, 'officer1');
+
+    expect(prisma.member.findUnique).toHaveBeenLastCalledWith({
+      where: { nikHash: hashNik('3201234567890123') },
+    });
+  });
+
+  it('never returns the full NIK, only the masked form', async () => {
+    const result = await service.verify({ token: 'tok_xxx', scannerMethod: 'MANUAL' }, 'officer1');
+
+    expect(result.member?.nikMasked).toBe('••••••••••••0123');
+    expect(result.member).not.toHaveProperty('nik');
   });
 });

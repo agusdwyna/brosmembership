@@ -11,10 +11,29 @@ const OFFICER_EMAIL = process.env.SEED_OFFICER_EMAIL || 'officer@bros.local';
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin123';
 const OFFICER_PASSWORD = process.env.SEED_OFFICER_PASSWORD || 'officer123';
 
+/**
+ * Marker row proving this database was already seeded. It lives in the database
+ * (not the container), so rebuilding or redeploying cannot bring back companies
+ * or accounts the operator deleted. `SEED_FORCE=true` re-runs the seed anyway,
+ * e.g. to sync built-in role permissions after a release.
+ */
+const SEED_MARKER_KEY = 'seed.version';
+const SEED_VERSION = '1';
+
 async function main() {
   console.log('🌱 Seeding database...');
 
   const isProduction = process.env.NODE_ENV === 'production';
+  const force = process.env.SEED_FORCE === 'true';
+
+  if (!force) {
+    const marker = await prisma.setting.findUnique({ where: { key: SEED_MARKER_KEY } });
+    if (marker) {
+      console.log(`↷ Seed dilewati — database sudah di-seed (${marker.value}).`);
+      console.log('  Set SEED_FORCE=true bila memang ingin menjalankannya lagi.');
+      return;
+    }
+  }
 
   // Only the admin password is mandatory: without it there is no way to log in.
   if (isProduction && !process.env.SEED_ADMIN_PASSWORD) {
@@ -201,6 +220,15 @@ async function main() {
     });
   }
   console.log(`  ✓ Settings: ${Object.keys(defaultSettings).length} defaults`);
+
+  // Written LAST: a seed that failed halfway must be retried on the next start,
+  // otherwise the database would be marked done while still incomplete.
+  await prisma.setting.upsert({
+    where: { key: SEED_MARKER_KEY },
+    update: { value: SEED_VERSION },
+    create: { key: SEED_MARKER_KEY, value: SEED_VERSION },
+  });
+  console.log(`  ✓ Seed marker: ${SEED_MARKER_KEY}=${SEED_VERSION}`);
 
   console.log('✅ Seed completed!');
   console.log('');

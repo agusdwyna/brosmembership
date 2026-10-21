@@ -35,15 +35,55 @@ else
   echo "▶ RUN_MIGRATIONS=false — melewati migrasi."
 fi
 
+# ─── NIK hashing backfill ─────────────────────────────────────────────────
+# Members used to store NIK in plaintext. The hash columns are added by a
+# migration; this copies the values over (needs NIK_HASH_KEY, which only the
+# app has) and then drops the plaintext column. Safe to run on every start:
+# it is a no-op once `nik` is gone.
+if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+  echo "▶ Memeriksa backfill NIK…"
+  if ! (cd /app/backend && node /opt/tools/node_modules/tsx/dist/cli.mjs prisma/backfill-nik-hash.ts); then
+    echo "✗ Backfill NIK gagal — periksa NIK_HASH_KEY dan status database." >&2
+    exit 1
+  fi
+fi
+
 # ─── Optional first-time seed ─────────────────────────────────────────────
-# Idempotent (uses upserts). Enable with RUN_SEED=true and set SEED_ADMIN_PASSWORD.
+# Runs at most ONCE per database, no matter how often the container restarts.
+# The seed records a `seed.version` row in `settings`; this guard reads it first
+# so a forgotten RUN_SEED=true (or a value still present after copying
+# .env.production) can never recreate deleted companies, types or accounts on
+# the next redeploy. Uses node + the already-generated Prisma client, so no tsx
+# startup cost on the normal (already-seeded) path.
+#
 # A failed seed must NOT stop the container: with `set -e` it would exit, Coolify
 # would restart the container, the seed would fail again, and the health check
 # would never pass. The app boots fine without it — log the failure and continue.
 if [ "${RUN_SEED:-false}" = "true" ]; then
-  echo "▶ Seeding database…"
-  if ! (cd /app/backend && node /opt/tools/node_modules/tsx/dist/cli.mjs prisma/seed.ts); then
-    echo "⚠️  Seed gagal — aplikasi tetap dijalankan. Periksa SEED_* lalu set RUN_SEED=false setelah seed berhasil." >&2
+  # Exit codes: 0 = already seeded, 1 = never seeded, 2 = check failed. Only the
+  # explicit "never seeded" (1) starts a seed — if the lookup itself errors we do
+  # nothing rather than risk re-creating data the operator deleted.
+  set +e
+  (cd /app/backend && node -e "
+      const { PrismaClient } = require('@prisma/client');
+      const p = new PrismaClient();
+      p.setting.findUnique({ where: { key: 'seed.version' } })
+        .then((row) => process.exit(row ? 0 : 1))
+        .catch(() => process.exit(2))
+        .finally(() => p.\$disconnect());
+    ")
+  SEED_STATE=$?
+  set -e
+
+  if [ "$SEED_STATE" -eq 0 ]; then
+    echo "↷ Seed dilewati — database ini sudah pernah di-seed. Set RUN_SEED=false."
+  elif [ "$SEED_STATE" -ne 1 ]; then
+    echo "⚠️  Gagal memeriksa penanda seed di database — seed tidak dijalankan. Periksa DATABASE_URL." >&2
+  else
+    echo "▶ Seeding database (sekali saja)…"
+    if ! (cd /app/backend && node /opt/tools/node_modules/tsx/dist/cli.mjs prisma/seed.ts); then
+      echo "⚠️  Seed gagal — aplikasi tetap dijalankan. Periksa SEED_* lalu set RUN_SEED=false setelah seed berhasil." >&2
+    fi
   fi
 fi
 

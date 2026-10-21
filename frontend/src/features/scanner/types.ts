@@ -10,7 +10,8 @@ export interface VerifyResponse {
   member?: {
     id: string;
     memberNumber: string;
-    nik: string;
+    /** Masked (`••••••••••••0001`); the API never returns the full NIK. */
+    nikMasked: string | null;
     qrHash: string;
     fullName: string;
   };

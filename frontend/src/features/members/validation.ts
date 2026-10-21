@@ -18,13 +18,16 @@ export const createMemberSchema = z.object({
 
 export const updateMemberSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
-  // NIK stays required: qrHash is derived from it, so clearing it would leave
-  // the member unverifiable. Matches createMemberSchema and the backend schema.
-  nik: z
-    .string()
-    .min(16, 'NIK harus 16 digit')
-    .max(16, 'NIK harus 16 digit')
-    .regex(/^\d+$/, 'NIK harus berupa angka'),
+  // The stored NIK is never sent to the browser (only its hash and last four
+  // digits live in the DB), so an empty field means "keep the current NIK".
+  nik: z.union([
+    z.literal(''),
+    z
+      .string()
+      .min(16, 'NIK harus 16 digit')
+      .max(16, 'NIK harus 16 digit')
+      .regex(/^\d+$/, 'NIK harus berupa angka'),
+  ]),
   phone: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   address: z.string().optional(),

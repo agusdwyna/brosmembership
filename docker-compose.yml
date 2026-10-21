@@ -26,6 +26,9 @@ services:
       # ── Required (fail fast if absent) ────────────────────────────────
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL wajib diisi}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib diisi}
+      # HMAC key for NIK hashes. Changing it makes every stored NIK unreadable
+      # (duplicate checks and NIK scan stop matching), so keep it stable.
+      NIK_HASH_KEY: ${NIK_HASH_KEY:?NIK_HASH_KEY wajib diisi (openssl rand -hex 32)}
 
       # ── Optional with sensible defaults ───────────────────────────────
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
@@ -37,8 +40,12 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-2}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
 
-      # ── First-time seed (idempotent) ──────────────────────────────────
+      # ── First-time seed (runs at most once per database) ──────────────
+      # The seed writes a `seed.version` marker; leaving RUN_SEED=true is safe,
+      # but set it to false after the first deploy anyway.
+      # SEED_FORCE=true re-runs it deliberately (e.g. to sync role permissions).
       RUN_SEED: ${RUN_SEED:-false}
+      SEED_FORCE: ${SEED_FORCE:-false}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       SEED_OFFICER_EMAIL: ${SEED_OFFICER_EMAIL:-}

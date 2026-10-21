@@ -141,29 +141,43 @@ export function MembersImportPage() {
     setRows((prev) => prev.filter((r) => r.rowNumber !== rowNumber));
   };
 
+  /**
+   * Partial import: rows that fail the preview check are skipped (never sent),
+   * and the valid ones are saved. The backend validates each row again on its
+   * own, so a row that slips through the preview cannot abort the batch either.
+   */
   const handleSubmit = async () => {
-    const invalid = drafts.filter((d) => d.errors.length > 0);
-    if (invalid.length > 0) {
-      toast.error(`Masih ada ${invalid.length} baris bermasalah. Perbaiki dulu sebelum import.`);
+    const validRows = drafts.filter((d) => d.errors.length === 0);
+    if (validRows.length === 0) {
+      toast.error('Tidak ada baris valid untuk diimport.');
       return;
     }
 
     setSubmitting(true);
     try {
-      const payload = drafts.map(({ errors: _errors, dateOfBirth, ...row }) => ({
+      const payload = validRows.map(({ errors: _errors, dateOfBirth, ...row }) => ({
         ...row,
         // Optional: an untouched "Tanggal Lahir" cell is an empty string, which
         // the backend schema treats as an invalid date rather than "absent".
         dateOfBirth: dateOfBirth || undefined,
       }));
       const { data } = await membersApi.importMany(payload);
-      setCreatedCount(data.data.created);
-      setFailed(data.data.failed);
 
-      if (data.data.failed.length === 0) {
+      // Rows rejected by the preview plus rows the server rejected.
+      const skippedFromPreview = drafts
+        .filter((d) => d.errors.length > 0)
+        .map((d) => ({ rowNumber: d.rowNumber, message: d.errors.join(', ') }));
+      const allFailed = [...data.data.failed, ...skippedFromPreview].sort(
+        (a, b) => a.rowNumber - b.rowNumber,
+      );
+
+      setCreatedCount(data.data.created);
+      setFailed(allFailed);
+
+      if (allFailed.length === 0) {
         toast.success(`${data.data.created} member berhasil diimport`);
       } else {
-        toast.warning(`${data.data.created} member dibuat, ${data.data.failed.length} baris gagal`);
+        toast.warning(`${data.data.created} member dibuat, ${allFailed.length} baris dilewati`);
       }
       setStage('result');
     } catch (err) {
@@ -173,7 +187,7 @@ export function MembersImportPage() {
     }
   };
 
-  /** Re-preview only the rows the server rejected, so they can be corrected. */
+  /** Re-preview only the rows that were skipped, so they can be corrected. */
   const retryFailed = () => {
     const failedNumbers = new Set(failed.map((f) => f.rowNumber));
     setRows((prev) => prev.filter((r) => failedNumbers.has(r.rowNumber)));
@@ -265,9 +279,9 @@ export function MembersImportPage() {
                 <h3>Pratinjau — {rows.length} baris</h3>
                 <div className="flex items-center gap-2">
                   {invalidCount > 0 ? (
-                    <Badge variant="danger">
-                      <AlertCircle className="w-3 h-3" aria-hidden /> {invalidCount} baris perlu{' '}
-                      diperbaiki
+                    <Badge variant="warning">
+                      <AlertCircle className="w-3 h-3" aria-hidden /> {invalidCount} baris akan
+                      dilewati
                     </Badge>
                   ) : (
                     <Badge variant="success">
@@ -359,10 +373,10 @@ export function MembersImportPage() {
                       row.errors.length > 0 ? (
                         <div
                           role="alert"
-                          className="flex items-start gap-1 text-[12px] text-danger"
+                          className="flex items-start gap-1 text-[12px] text-warning"
                         >
                           <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden />
-                          <span>{row.errors.join(', ')}</span>
+                          <span>Dilewati — {row.errors.join(', ')}</span>
                         </div>
                       ) : (
                         <span className="text-[12px] text-success">Siap diimport</span>
@@ -395,10 +409,12 @@ export function MembersImportPage() {
             <Button
               type="button"
               loading={submitting}
-              disabled={rows.length === 0 || invalidCount > 0}
+              disabled={rows.length === 0 || invalidCount === rows.length}
               onClick={handleSubmit}
             >
-              Import {rows.length} Member
+              {invalidCount > 0
+                ? `Import ${rows.length - invalidCount} dari ${rows.length} Member`
+                : `Import ${rows.length} Member`}
             </Button>
           </div>
         </>
@@ -422,10 +438,13 @@ export function MembersImportPage() {
                 <>
                   <div
                     role="alert"
-                    className="flex items-start gap-2 bg-danger/10 text-danger text-[13px] px-4 py-3 rounded-[4px] border border-danger/20"
+                    className="flex items-start gap-2 bg-warning/10 text-warning text-[13px] px-4 py-3 rounded-[4px] border border-warning/20"
                   >
                     <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden />
-                    <span>{failed.length} baris gagal dibuat.</span>
+                    <span>
+                      {failed.length} baris dilewati dan tidak disimpan. Perbaiki lalu import ulang
+                      bila perlu.
+                    </span>
                   </div>
 
                   <div className="border border-border rounded-[4px] overflow-hidden">
@@ -452,7 +471,7 @@ export function MembersImportPage() {
               <div className="flex justify-end gap-3">
                 {failed.length > 0 && (
                   <Button variant="secondary" type="button" onClick={retryFailed}>
-                    Perbaiki Baris Gagal
+                    Perbaiki {failed.length} Baris Dilewati
                   </Button>
                 )}
                 <Button type="button" onClick={() => navigate('/members')}>

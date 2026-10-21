@@ -21,7 +21,7 @@ export interface MembershipCard {
     member: {
       id: string;
       memberNumber: string;
-      nik: string | null;
+      nikLast4: string | null;
       qrHash: string | null;
       fullName: string;
       photo?: string | null;

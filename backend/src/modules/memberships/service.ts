@@ -9,7 +9,7 @@ export class MembershipService {
     return prisma.membership.findMany({
       where,
       include: {
-        member: { select: { id: true, memberNumber: true, nik: true, fullName: true } },
+        member: { select: { id: true, memberNumber: true, nikLast4: true, fullName: true } },
         membershipType: true,
         cards: true,
       },
@@ -21,7 +21,8 @@ export class MembershipService {
     const item = await prisma.membership.findUnique({
       where: { id },
       include: {
-        member: true,
+        // Never ship the NIK HMAC to the client; only the masked last four.
+        member: { omit: { nikHash: true } },
         membershipType: true,
         cards: { include: { cardTemplate: true } },
       },

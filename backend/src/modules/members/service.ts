@@ -1,12 +1,22 @@
 import { prisma } from '../../config/database';
-import type { CreateMemberInput, ImportMemberRow, UpdateMemberInput } from './schema';
-import { createHash } from 'crypto';
+import {
+  importMemberRowSchema,
+  type CreateMemberInput,
+  type ImportMemberRow,
+  type UpdateMemberInput,
+} from './schema';
 import { activityLogService } from '../activity-log/service';
 import { LIST_LIMIT } from '../../lib/query';
 import { generateCardNumber, generateMemberNumber, retryOnUnique } from '../../lib/numbering';
+import { generateQrToken, hashNik, last4Nik } from '../../lib/nik';
 
-function generateQrHash(nik: string, memberNumber: string): string {
-  return createHash('sha256').update(`${nik}${memberNumber}`).digest('hex');
+/** Best-effort row number from a row that failed schema validation. */
+function rowNumberFrom(row: unknown): number | undefined {
+  if (typeof row === 'object' && row !== null && 'rowNumber' in row) {
+    const value = (row as { rowNumber: unknown }).rowNumber;
+    if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
+  }
+  return undefined;
 }
 
 /**
@@ -26,7 +36,9 @@ class MemberService {
           OR: [
             { fullName: { contains: search, mode: 'insensitive' as const } },
             { memberNumber: { contains: search, mode: 'insensitive' as const } },
-            { nik: { contains: search, mode: 'insensitive' as const } },
+            // NIK itself is not stored, so only the last four digits are
+            // searchable. A full NIK still resolves through the scanner.
+            { nikLast4: { contains: search } },
             { phone: { contains: search, mode: 'insensitive' as const } },
           ],
         }
@@ -34,6 +46,9 @@ class MemberService {
 
     return prisma.member.findMany({
       where,
+      // The HMAC is an internal index, not data for the client. `omit` keeps
+      // every other column without listing them all here.
+      omit: { nikHash: true },
       include: {
         company: { select: { id: true, code: true, name: true } },
         memberships: {
@@ -66,6 +81,7 @@ class MemberService {
   async getById(id: string) {
     const member = await prisma.member.findUnique({
       where: { id },
+      omit: { nikHash: true },
       include: {
         company: true,
         memberships: {
@@ -142,12 +158,13 @@ class MemberService {
       prisma.$transaction(async (tx) => {
         const memberNumber = await generateMemberNumber(tx);
         const cardNumber = await generateCardNumber(tx);
-        const qrHash = generateQrHash(input.nik, memberNumber);
+        const qrHash = generateQrToken();
 
         const member = await tx.member.create({
           data: {
             memberNumber,
-            nik: input.nik,
+            nikHash: hashNik(input.nik),
+            nikLast4: last4Nik(input.nik),
             qrHash,
             fullName: input.fullName,
             phone: input.phone,
@@ -196,51 +213,68 @@ class MemberService {
   }
 
   /**
-   * Bulk import for the Excel/CSV flow.
+   * Bulk import for the Excel/CSV flow — partial by design.
    *
-   * Each row goes through `create()`, so numbering, QR hash, card issuance,
-   * the transaction + retry and the activity log all behave exactly like a
-   * single registration. Rows are independent on purpose: one bad row (duplicate
-   * NIK, inactive membership type, …) is reported back instead of rolling back
-   * the whole batch.
+   * One bad row must never block the batch: each row is validated on its own
+   * against `importMemberRowSchema`, and a row that fails (bad date, missing
+   * type, invalid NIK, arbitrary Prisma error) is reported and skipped while
+   * the rest are saved. Doing this here — rather than in the route's
+   * `validate()` — is what makes that possible; whole-body validation would
+   * reject the entire request on the first malformed line.
    *
-   * NIKs that repeat inside the uploaded file are rejected up front — letting
-   * them through would create one member and fail the rest with a P2002 whose
-   * message ("Data sudah ada (duplikat)") does not say which line to fix.
+   * Duplicates are checked twice: against the file itself (two rows with the
+   * same NIK, both skipped so neither is silently chosen) and against the
+   * database (already-registered NIK). The database check goes through
+   * `nikHash` because the plaintext NIK is not stored.
    */
-  async importMany(rows: ImportMemberRow[], performedBy: string) {
+  async importMany(rows: unknown[], performedBy: string) {
+    const failed: { rowNumber: number; message: string }[] = [];
+    const valid: ImportMemberRow[] = [];
+
+    for (const [index, raw] of rows.entries()) {
+      const result = importMemberRowSchema.safeParse(raw);
+      if (!result.success) {
+        failed.push({
+          // Fall back to the position in the request when the row is so broken
+          // that even `rowNumber` is missing.
+          rowNumber: rowNumberFrom(raw) ?? index + 2,
+          message: result.error.errors.map((e) => e.message).join(', '),
+        });
+        continue;
+      }
+      valid.push(result.data);
+    }
+
+    // Duplicates inside the file: keep the first occurrence, reject the rest
+    // with a message that names the earlier line.
     const seen = new Map<string, number>();
-    const duplicateRows = new Set<number>();
-    for (const row of rows) {
+    const duplicateRows = new Map<number, string>();
+    for (const row of valid) {
       const first = seen.get(row.nik);
       if (first !== undefined) {
-        duplicateRows.add(first);
-        duplicateRows.add(row.rowNumber);
+        duplicateRows.set(row.rowNumber, `NIK ${row.nik} duplikat dengan baris ${first}`);
       } else {
         seen.set(row.nik, row.rowNumber);
       }
     }
 
-    // Reject NIKs that already exist in the database before creating anything,
-    // so those rows fail with a clear reason rather than a generic P2002.
+    // NIKs already in the database, so those rows fail with a clear reason
+    // rather than a generic P2002.
     const existing = await prisma.member.findMany({
-      where: { nik: { in: [...seen.keys()] } },
-      select: { nik: true },
+      where: { nikHash: { in: [...seen.keys()].map(hashNik) } },
+      select: { nikHash: true },
     });
-    const takenNiks = new Set(existing.map((m) => m.nik));
+    const takenHashes = new Set(existing.map((m) => m.nikHash));
 
     const created: string[] = [];
-    const failed: { rowNumber: number; message: string }[] = [];
 
-    for (const row of rows) {
-      if (duplicateRows.has(row.rowNumber)) {
-        failed.push({
-          rowNumber: row.rowNumber,
-          message: `NIK ${row.nik} duplikat di dalam file`,
-        });
+    for (const row of valid) {
+      const duplicateMessage = duplicateRows.get(row.rowNumber);
+      if (duplicateMessage) {
+        failed.push({ rowNumber: row.rowNumber, message: duplicateMessage });
         continue;
       }
-      if (takenNiks.has(row.nik)) {
+      if (takenHashes.has(hashNik(row.nik))) {
         failed.push({ rowNumber: row.rowNumber, message: `NIK ${row.nik} sudah terdaftar` });
         continue;
       }
@@ -257,22 +291,29 @@ class MemberService {
       }
     }
 
+    failed.sort((a, b) => a.rowNumber - b.rowNumber);
     return { created: created.length, failed };
   }
 
   async update(id: string, input: UpdateMemberInput) {
-    const existing = await this.getById(id);
+    await this.getById(id);
 
     const data: Record<string, unknown> = normalizeCompanyId({ ...input });
 
-    // Regenerate qrHash if NIK changes
-    if (input.nik && input.nik !== existing.nik) {
-      data.qrHash = generateQrHash(input.nik, existing.memberNumber);
+    // The form cannot show the current NIK, so it sends `nik` only when the
+    // operator types a replacement. Store the hash/last4 instead, and never
+    // touch `qrHash`: it is now a random token, unrelated to the NIK, and
+    // regenerating it would invalidate a card that is already printed.
+    if (input.nik) {
+      data.nikHash = hashNik(input.nik);
+      data.nikLast4 = last4Nik(input.nik);
     }
+    delete data.nik;
 
     return prisma.member.update({
       where: { id },
       data,
+      omit: { nikHash: true },
       include: {
         company: true,
         memberships: {
@@ -289,6 +330,7 @@ class MemberService {
     return prisma.member.update({
       where: { id },
       data: { status: 'INACTIVE' },
+      omit: { nikHash: true },
     });
   }
 
@@ -297,6 +339,7 @@ class MemberService {
     return prisma.member.update({
       where: { id },
       data: { status: 'ACTIVE' },
+      omit: { nikHash: true },
     });
   }
 }

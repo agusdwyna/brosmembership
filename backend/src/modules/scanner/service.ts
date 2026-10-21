@@ -1,10 +1,11 @@
 import { prisma } from '../../config/database';
+import { hashNik, maskNik } from '../../lib/nik';
 import type { VerifyInput } from './schema';
 
 interface MemberRef {
   id: string;
   memberNumber: string;
-  nik: string | null;
+  nikLast4: string | null;
   qrHash: string | null;
   fullName: string;
 }
@@ -33,7 +34,8 @@ interface VerificationResponse {
   member?: {
     id: string;
     memberNumber: string;
-    nik: string | null;
+    /** Masked form (`••••••••••••0001`); the full NIK is never returned. */
+    nikMasked: string | null;
     qrHash: string | null;
     fullName: string;
   };
@@ -284,9 +286,9 @@ export class ScannerService {
     });
     if (member) return member;
 
-    // 3. Try by NIK
+    // 3. Try by NIK — only its HMAC is stored, so hash the typed value first.
     member = await prisma.member.findUnique({
-      where: { nik: token },
+      where: { nikHash: hashNik(token) },
     });
     return member;
   }
@@ -309,7 +311,7 @@ export class ScannerService {
     return {
       id: member.id,
       memberNumber: member.memberNumber,
-      nik: member.nik,
+      nikMasked: maskNik(member.nikLast4),
       qrHash: member.qrHash,
       fullName: member.fullName,
     };

@@ -1,4 +1,4 @@
-import { forwardRef, type SelectHTMLAttributes } from 'react';
+import { forwardRef, useId, type SelectHTMLAttributes } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -11,17 +11,21 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, label, error, id, options, placeholder, ...props }, ref) => {
-    const errorId = error && id ? `${id}-error` : undefined;
+    // A generated fallback keeps the <label> associated even when the caller
+    // does not pass an id (see Input for the same reasoning).
+    const generatedId = useId();
+    const selectId = id ?? generatedId;
+    const errorId = error ? `${selectId}-error` : undefined;
     return (
       <div className="space-y-1.5">
         {label && (
-          <label htmlFor={id} className="block text-[13px] font-medium text-foreground">
+          <label htmlFor={selectId} className="block text-[13px] font-medium text-foreground">
             {label}
           </label>
         )}
         <select
           ref={ref}
-          id={id}
+          id={selectId}
           aria-invalid={error ? true : undefined}
           aria-describedby={errorId}
           className={cn(

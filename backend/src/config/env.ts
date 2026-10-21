@@ -5,6 +5,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const JWT_SECRET = process.env.JWT_SECRET;
+const NIK_HASH_KEY = process.env.NIK_HASH_KEY;
 
 // A missing or well-known secret lets anyone forge an ADMIN token. Refuse to
 // boot with one unless we are explicitly in development or under test — the
@@ -18,6 +19,15 @@ if (!isDevLike && (!JWT_SECRET || WEAK_SECRETS.has(JWT_SECRET))) {
   );
 }
 
+// NIKs are stored as an HMAC of the value; losing or changing this key makes
+// every stored NIK hash unreadable (duplicate checks and NIK scan would fail),
+// so refuse to boot production without one.
+if (!isDevLike && (!NIK_HASH_KEY || NIK_HASH_KEY.length < 32)) {
+  throw new Error(
+    'NIK_HASH_KEY wajib diisi minimal 32 karakter di production (gunakan `openssl rand -hex 32`).',
+  );
+}
+
 export const env = {
   NODE_ENV,
   API_PORT: parseInt(process.env.API_PORT || '3002', 10),
@@ -27,6 +37,8 @@ export const env = {
   JWT_SECRET: JWT_SECRET || 'dev-secret',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '1d',
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  // Dev/test fallback only; production is rejected above.
+  NIK_HASH_KEY: NIK_HASH_KEY || 'dev-nik-hash-key-change-me-32-chars',
   // Comma-separated list of allowed CORS origins. Empty → allow all (dev only).
   CORS_ORIGINS: (process.env.CORS_ORIGINS || '')
     .split(',')

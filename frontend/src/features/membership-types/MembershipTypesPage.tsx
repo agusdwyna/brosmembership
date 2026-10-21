@@ -194,7 +194,10 @@ export function MembershipTypesPage() {
 export function MembershipTypeFormPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const isNew = id === 'new';
+  // "Tambah" lives on `/membership-types/new` with no `:id`; editing is
+  // `/membership-types/:id/edit`. Treating a missing id as an edit would submit
+  // `PUT /membership-types/undefined`.
+  const isNew = !id || id === 'new';
   const [form, setForm] = useState<CreateMembershipTypeInput>({
     code: '',
     name: '',

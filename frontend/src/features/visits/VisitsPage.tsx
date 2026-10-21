@@ -41,7 +41,7 @@ export function VisitsPage() {
         (v) =>
           v.member.fullName.toLowerCase().includes(search.toLowerCase()) ||
           v.member.memberNumber.toLowerCase().includes(search.toLowerCase()) ||
-          (v.member.nik ?? '').toLowerCase().includes(search.toLowerCase()) ||
+          (v.member.nikLast4 ?? '').includes(search.trim()) ||
           v.officer.name.toLowerCase().includes(search.toLowerCase()),
       )
     : items;
@@ -100,7 +100,7 @@ export function VisitsPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Cari member atau petugas..."
+            placeholder="Cari member, 4 digit NIK, atau petugas..."
           />
         </TableToolbar>
         <ListCapNotice meta={meta} />

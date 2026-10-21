@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { hashNik } from '../../../lib/nik';
 
 const txMock = {
   member: { create: vi.fn(), count: vi.fn() },
@@ -133,12 +134,13 @@ describe('MemberService', () => {
   });
 
   describe('importMany — per-row outcomes', () => {
+    // Rows arrive as JSON, and the service now validates each one itself.
     const row = (rowNumber: number, nik: string) => ({
       rowNumber,
       fullName: 'Agus',
       nik,
       membershipTypeId: 'mt1',
-      startDate: new Date('2025-01-01'),
+      startDate: '2025-01-01',
     });
 
     function primeImport() {
@@ -168,7 +170,8 @@ describe('MemberService', () => {
 
     it('skips NIKs that already exist in the database but still creates the rest', async () => {
       primeImport();
-      (prisma.member.findMany as any).mockResolvedValue([{ nik: '3201234567890123' }]);
+      // The duplicate check compares hashes, never the plaintext NIK.
+      (prisma.member.findMany as any).mockResolvedValue([{ nikHash: hashNik('3201234567890123') }]);
 
       const result = await service.importMany(
         [row(2, '3201234567890123'), row(3, '3201234567890124')],
@@ -181,7 +184,7 @@ describe('MemberService', () => {
       ]);
     });
 
-    it('rejects NIKs repeated inside the file with both row numbers', async () => {
+    it('keeps the first NIK and rejects the repeated one with its row numbers', async () => {
       primeImport();
 
       const result = await service.importMany(
@@ -189,10 +192,42 @@ describe('MemberService', () => {
         'officer1',
       );
 
+      expect(result.created).toBe(1);
+      expect(result.failed).toEqual([
+        { rowNumber: 3, message: 'NIK 3201234567890123 duplikat dengan baris 2' },
+      ]);
+    });
+
+    it('skips a row that fails validation but imports the rest', async () => {
+      primeImport();
+
+      const result = await service.importMany(
+        [
+          row(2, '3201234567890123'),
+          // Bad NIK: 15 digits.
+          { ...row(3, '320123456789012'), nik: '320123456789012' },
+          { ...row(4, '3201234567890125'), startDate: '31/02/2026' },
+        ],
+        'officer1',
+      );
+
+      expect(result.created).toBe(1);
+      expect(result.failed.map((f) => f.rowNumber)).toEqual([3, 4]);
+      expect(result.failed[0].message).toContain('NIK harus 16 digit');
+      expect(result.failed[1].message).toContain('Tanggal mulai tidak valid');
+    });
+
+    it('reports the row position even when rowNumber itself is missing', async () => {
+      primeImport();
+
+      const result = await service.importMany(
+        [{ fullName: 'Agus', nic: 'typo', membershipTypeId: 'mt1' }],
+        'officer1',
+      );
+
       expect(result.created).toBe(0);
-      expect(result.failed.map((f) => f.rowNumber)).toEqual([2, 3]);
-      // Neither duplicate reaches create(), so no membership is written.
-      expect(txMock.membership.create).not.toHaveBeenCalled();
+      // Position in the request (index 0) plus the header row offset.
+      expect(result.failed[0].rowNumber).toBe(2);
     });
 
     it('does not re-read full member detail for each row', async () => {

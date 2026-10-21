@@ -106,7 +106,7 @@ export function MembersPage() {
               member: {
                 id: member.id,
                 memberNumber: member.memberNumber,
-                nik: member.nik,
+                nikLast4: member.nikLast4,
                 qrHash: member.qrHash,
                 fullName: member.fullName,
                 photo: member.photo,
@@ -253,7 +253,7 @@ export function MembersPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Cari member..."
+            placeholder="Cari nama, no. member, 4 digit NIK..."
             onSubmit={() => loadMembers(search)}
           />
           <div className="w-40">

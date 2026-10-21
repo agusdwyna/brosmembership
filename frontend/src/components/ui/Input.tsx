@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes } from 'react';
+import { forwardRef, useId, type InputHTMLAttributes } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -10,17 +10,22 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, helper, id, ...props }, ref) => {
-    const errorId = error && id ? `${id}-error` : undefined;
+    // Fall back to a generated id so the <label> is always associated with its
+    // input — clickable label, correct screen-reader output, and tests can use
+    // getByLabelText even when the caller did not pass an id.
+    const generatedId = useId();
+    const inputId = id ?? generatedId;
+    const errorId = error ? `${inputId}-error` : undefined;
     return (
       <div className="space-y-1.5">
         {label && (
-          <label htmlFor={id} className="block text-[13px] font-medium text-foreground">
+          <label htmlFor={inputId} className="block text-[13px] font-medium text-foreground">
             {label}
           </label>
         )}
         <input
           ref={ref}
-          id={id}
+          id={inputId}
           aria-invalid={error ? true : undefined}
           aria-describedby={errorId}
           className={cn(

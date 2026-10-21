@@ -63,7 +63,11 @@ model Company {
 model Member {
   id           String   @id @default(cuid())
   memberNumber String   @unique
-  nik          String?  @unique
+  // NIK is personal data and is never stored in plaintext: `nikHash` is an
+  // HMAC (key in the environment) used for uniqueness and NIK lookup, and
+  // `nikLast4` is the only part shown to operators.
+  nikHash      String?  @unique
+  nikLast4     String?
   qrHash       String?  @unique
   fullName     String
   phone        String?

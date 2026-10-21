@@ -70,7 +70,7 @@ export function TemplatePreviewModal({
         member: {
           id: 'preview',
           memberNumber: SAMPLE.memberNumber,
-          nik: null,
+          nikLast4: null,
           qrHash: SAMPLE.qrHash,
           fullName: SAMPLE.fullName,
         },

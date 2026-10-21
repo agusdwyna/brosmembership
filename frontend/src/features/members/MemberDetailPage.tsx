@@ -161,7 +161,9 @@ export function MemberDetailPage() {
     if (!member) return;
     setForm({
       fullName: member.fullName,
-      nik: member.nik || '',
+      // NIK is not returned by the API: the field starts empty, and only a
+      // value the operator types replaces the stored hash.
+      nik: '',
       phone: member.phone || '',
       email: member.email || '',
       address: member.address || '',
@@ -192,7 +194,9 @@ export function MemberDetailPage() {
 
     setSaving(true);
     try {
-      await membersApi.update(id, form);
+      // An empty NIK means "unchanged": drop it so the backend keeps the hash.
+      const { nik, ...rest } = form;
+      await membersApi.update(id, nik ? { ...rest, nik } : rest);
       toast.success('Member updated successfully');
       setEditing(false);
       await loadMember();
@@ -365,13 +369,17 @@ export function MemberDetailPage() {
                     required
                   />
                   <Input
-                    label="NIK"
+                    label="NIK (kosongkan bila tidak diubah)"
                     value={form.nik || ''}
                     onChange={(e) => handleProfileChange('nik', e.target.value)}
                     error={fieldErrors.nik}
                     disabled={saving}
-                    required
                     maxLength={16}
+                    helper={
+                      member.nikLast4
+                        ? `Tersimpan: ••••••••••••${member.nikLast4}`
+                        : 'Belum ada NIK tersimpan'
+                    }
                   />
                   <Input
                     label="Phone"
@@ -448,7 +456,9 @@ export function MemberDetailPage() {
                 </div>
                 <div>
                   <span className="text-muted">NIK:</span>{' '}
-                  <span className="font-mono">{member.nik || '-'}</span>
+                  <span className="font-mono">
+                    {member.nikLast4 ? `••••••••••••${member.nikLast4}` : '-'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-muted">Phone:</span> {member.phone || '-'}
@@ -593,7 +603,7 @@ export function MemberDetailPage() {
                             member: {
                               id: member.id,
                               memberNumber: member.memberNumber,
-                              nik: member.nik,
+                              nikLast4: member.nikLast4,
                               qrHash: member.qrHash,
                               fullName: member.fullName,
                               photo: member.photo,
