@@ -1,5 +1,5 @@
 /**
- * Parse a `YYYY-MM-DD` query value in server-local time (TZ=Asia/Jakarta in the
+ * Parse a `YYYY-MM-DD` query value in server-local time (TZ=Asia/Makassar in the
  * container). Exported so every date-filtered endpoint behaves the same:
  * `dateTo` must cover the whole final day instead of stopping at midnight, and
  * a malformed value must be a 400 — not an Invalid Date that Prisma rejects

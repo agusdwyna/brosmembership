@@ -12,6 +12,16 @@ export const DATE_TIME_FORMAT = 'dd/MM/yyyy HH:mm';
 /** Machine format required by `<input type="date">` and the API. Never display it. */
 export const DATE_INPUT_FORMAT = 'yyyy-MM-dd';
 
+/**
+ * The business timezone: WITA (Makassar/Bali, UTC+8).
+ *
+ * Formatting is pinned to it instead of the browser's zone. A member's
+ * membership starts at midnight WITA, which is 16:00 UTC the day before; a
+ * machine (or operator laptop) set to UTC would otherwise show the expiry a day
+ * early. The api container runs with TZ=Asia/Makassar for the same reason.
+ */
+export const BUSINESS_TIME_ZONE = 'Asia/Makassar';
+
 type DateInput = string | number | Date | null | undefined;
 
 function toDate(value: DateInput): Date | null {
@@ -21,36 +31,63 @@ function toDate(value: DateInput): Date | null {
 }
 
 /**
- * Add whole days in local time. `setDate` is used instead of
- * `+ days * 86400000` so a DST transition cannot shift the result by an hour and
- * turn an expiry date into the previous day.
+ * Add whole days on the UTC calendar, which is the same calendar WITA is on
+ * (no DST, whole-hour offset). `+ days * 86400000` would break at a DST
+ * transition; `setUTCDate` cannot.
  */
 export function addDays(date: Date, days: number): Date {
   const result = new Date(date);
-  result.setDate(result.getDate() + days);
+  result.setUTCDate(result.getUTCDate() + days);
   return result;
 }
 
-/** Renders `21/10/2026`; returns `fallback` for missing or invalid input. */
+/** Renders `21/10/2026` in WITA; returns `fallback` for missing or invalid input. */
 export function formatDate(value: DateInput, fallback = '-'): string {
   const date = toDate(value);
-  return date ? format(date, DATE_FORMAT) : fallback;
+  return date ? businessDateParts(date).join('/') : fallback;
 }
 
-/** Renders `21/10/2026 14:35`. */
+/** Renders `21/10/2026 14:35` in WITA. */
 export function formatDateTime(value: DateInput, fallback = '-'): string {
   const date = toDate(value);
-  return date ? format(date, DATE_TIME_FORMAT) : fallback;
+  if (!date) return fallback;
+  const [day, month, year] = businessDateParts(date);
+  return `${day}/${month}/${year} ${businessTime(date)}`;
 }
 
 /**
- * Value for the machine end of a date field (`2026-10-21`). Formatting locally
- * matters: `toISOString()` converts to UTC, which yields yesterday before
- * 07:00 WIB.
+ * Value for the machine end of a date field (`2026-10-21`), in WITA.
+ * `toISOString()` would be UTC and read as the previous day before 08:00 WITA.
  */
 export function toDateInputValue(value: DateInput): string {
   const date = toDate(value);
-  return date ? format(date, DATE_INPUT_FORMAT) : '';
+  if (!date) return '';
+  const [day, month, year] = businessDateParts(date);
+  return `${year}-${month}-${day}`;
+}
+
+/** `[dd, MM, yyyy]` as seen in WITA. */
+function businessDateParts(date: Date): [string, string, string] {
+  // en-CA renders as YYYY-MM-DD. Some ICU builds pad with a different separator,
+  // so pull the digits out rather than trusting the exact string.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return [get('day'), get('month'), get('year')];
+}
+
+function businessTime(date: Date): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
 }
 
 /**

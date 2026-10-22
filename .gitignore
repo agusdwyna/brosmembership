@@ -13,3 +13,7 @@ uploads/*
 
 # Generated card exports may contain member data — never commit them
 frontend/cards-export-*.pdf
+
+# Data-operation backups (member names, card numbers) are local only
+backups/
+

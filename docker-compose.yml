@@ -22,8 +22,8 @@ services:
       # Internal-only port the Express API binds. Must differ from PORT.
       API_PORT: "3002"
       API_PREFIX: /api
-      # Business day boundaries (dashboard, reports, number resets) are WIB.
-      TZ: ${TZ:-Asia/Jakarta}
+      # Business day boundaries (dashboard, reports, number resets) are WITA.
+      TZ: ${TZ:-Asia/Makassar}
 
       # ── Required (fail fast if absent) ────────────────────────────────
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL wajib diisi}

@@ -151,6 +151,11 @@ SEED_ADMIN_PASSWORD=password-kuat-admin
   dalam container. Jika hanya `1`, semua request terlihat berasal dari IP proxy.
   Tambahkan satu lagi (mis. `3`) bila di depan Coolify masih ada Cloudflare/proxy
   lain.
+- **`TZ` = `Asia/Makassar` (WITA).** Default di Dockerfile sudah WITA. Jangan
+  dibiarkan UTC: batas "hari ini" di dashboard, laporan, dan reset nomor
+  mengikuti zona ini, dan tanggal kartu disimpan sebagai tengah malam WITA —
+  dibaca dalam UTC, tanggal berakhir tampil **sehari lebih awal**. Kalau `TZ`
+  diubah di Coolify, frontend tetap memformat tanggal dalam WITA.
 - **Seed berjalan maksimal sekali per database.** Seed menulis penanda
   `seed.version` di tabel `settings`; entrypoint memeriksanya lebih dulu, jadi
   `RUN_SEED=true` yang lupa dimatikan **tidak** akan membuat ulang company,

@@ -11,6 +11,34 @@ import {
   DATE_INPUT_FORMAT,
 } from '../date';
 
+/**
+ * Membership dates are stored as midnight WITA, which is 16:00 UTC the day
+ * before. Reading them with the machine's local zone turned a card expiring
+ * 17/11 into 16/11 whenever the reader sat in UTC — the bug this pins down.
+ */
+describe('business timezone (WITA)', () => {
+  it('renders a UTC-16:00 timestamp as the WITA calendar day', () => {
+    // 2026-11-16T16:00:00Z === 17/11/2026 00:00 WITA
+    expect(formatDate('2026-11-16T16:00:00.000Z')).toBe('17/11/2026');
+    expect(toDateInputValue('2026-11-16T16:00:00.000Z')).toBe('2026-11-17');
+  });
+
+  it('does not shift the day when the reader is west of WITA', () => {
+    // Same instant, expressed as the API sends it for a start date.
+    expect(formatDate('2026-10-12T16:00:00.000Z')).toBe('13/10/2026');
+  });
+
+  it('keeps a WITA evening timestamp on the same day', () => {
+    // 21:30 WITA = 13:30 UTC.
+    expect(formatDate('2026-10-21T13:30:00.000Z')).toBe('21/10/2026');
+    expect(formatDateTime('2026-10-21T13:30:00.000Z')).toBe('21/10/2026 21:30');
+  });
+
+  it('shows midnight WITA as 00:00, not the previous day', () => {
+    expect(formatDateTime('2026-11-16T16:00:00.000Z')).toBe('17/11/2026 00:00');
+  });
+});
+
 describe('date formatting', () => {
   it('uses dd/MM/yyyy so day and month cannot be confused', () => {
     expect(DATE_FORMAT).toBe('dd/MM/yyyy');
