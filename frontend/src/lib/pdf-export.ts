@@ -3,29 +3,30 @@ import { formatDate } from '@/lib/date';
 import { generateQRDataURL } from '@/lib/qr';
 import type { MembershipCard } from '@/features/members/card-types';
 
+// ─── Page geometry ──────────────────────────────────────
+
 // A4 dimensions in mm
 const A4_WIDTH = 210;
 const A4_HEIGHT = 297;
 
-// Grid layout per A4 page: 2 cards side by side (a lone card — e.g. the last
-// one in a batch — is centred on its own page). Fronts and backs print on
-// separate sheets, 2 up each.
-const GRID_COLS = 2;
-const GRID_ROWS = 1;
-const CARDS_PER_PAGE = GRID_COLS * GRID_ROWS;
+// Real card size (ISO/IEC 7810 ID-1) — 85.6 × 54 mm, the same 400:250 ratio the
+// editor and preview use. Printing at the true size means a cut card fits a
+// standard card sleeve.
+const CARD_WIDTH_MM = 85.6;
+const CARD_HEIGHT_MM = 54;
 
-// Card dimensions in mm (400:250 ratio)
-const CARD_WIDTH_MM = 85;
-const CARD_HEIGHT_MM = CARD_WIDTH_MM * (250 / 400); // ~53.125mm
+// Vertical gap between the front and back card on a member's page.
+const CARD_GAP_MM = 20;
 
-// Gap between cards and from the page edges (mm)
-const CARD_GAP_MM = 12;
+// The template's own coordinate space. Every element value (x/y/width/height/
+// fontSize) is authored in these units, so the canvas must be driven by them.
+export const CARD_WIDTH = 400;
+export const CARD_HEIGHT = 250;
 
-// Card render size in px (the template's own coordinate space) and a supersample
-// factor so the printed raster stays crisp at print DPI.
-const CARD_WIDTH = 400;
-const CARD_HEIGHT = 250;
-const RENDER_SCALE = 3;
+// Supersample factor for the printed raster. The canvas is drawn at this
+// multiple so the PDF image stays sharp at print DPI; element coordinates are
+// scaled by the same factor, never mixed with unscaled values.
+export const RENDER_SCALE = 4;
 
 const CARD_FONT = "'Roboto', system-ui, sans-serif";
 
@@ -36,8 +37,6 @@ interface CardPrintData {
 type Side = 'FRONT' | 'BACK';
 type TemplateSide = MembershipCard['cardTemplate']['sides'][number];
 type TemplateElement = TemplateSide['elements'][number];
-
-const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // ─── Asset loading ──────────────────────────────────────
 
@@ -52,9 +51,9 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
 }
 
 /**
- * Pick the most legible text color for a patch of background by walking a
- * coarse grid over `el`'s box on an already-drawn canvas. Falls back to the
- * dark ink when the region is empty/transparent.
+ * Pick the most legible text color for a patch of background by sampling the
+ * already-drawn canvas behind `el`. Used only when the element has no explicit
+ * color, so it matches the automatic behavior of the on-screen preview.
  */
 function contrastColor(
   ctx: CanvasRenderingContext2D,
@@ -103,7 +102,7 @@ function elementText(card: MembershipCard, type: string): string {
   }
 }
 
-function drawElement(
+export function drawElement(
   ctx: CanvasRenderingContext2D,
   el: TemplateElement,
   card: MembershipCard,
@@ -123,7 +122,11 @@ function drawElement(
   const text = elementText(card, el.type);
   if (!text) return;
 
-  const fontSize = el.fontSize || 12;
+  // fontSize is in template units like every other coordinate, so it has to be
+  // multiplied by the render scale. Leaving it unscaled printed the text at a
+  // quarter of its designed size while the boxes were full size — the "kacau"
+  // look in the exported PDF.
+  const fontSize = (el.fontSize || 12) * scale;
   const weight = el.fontWeight || 'normal';
   ctx.font = `${weight} ${fontSize}px ${CARD_FONT}`;
   ctx.textBaseline = 'middle';
@@ -183,12 +186,18 @@ async function renderCard(card: MembershipCard, side: Side): Promise<string> {
     }
   }
 
-  await delay(0);
   return canvas.toDataURL('image/png');
 }
 
 // ─── PDF assembly ───────────────────────────────────────
 
+/**
+ * Print cards to an A4 PDF, one member per page: front above, back below,
+ * centred, at true card size, with no labels or cut borders.
+ *
+ * Each page is rendered from the same element geometry the preview uses, so
+ * what the operator sees in the editor is what comes out of the printer.
+ */
 export async function exportCardsToPDF(
   cards: CardPrintData[],
   onProgress?: (current: number, total: number) => void,
@@ -200,68 +209,72 @@ export async function exportCardsToPDF(
   const totalSteps = cards.length * 2; // front + back for each card
   let currentStep = 0;
 
-  // Process FRONT sides
-  const frontImages: string[] = [];
-  for (const { card } of cards) {
-    frontImages.push(await renderCard(card, 'FRONT'));
+  const x = (A4_WIDTH - CARD_WIDTH_MM) / 2;
+  // Two cards plus the gap, vertically centred on the sheet.
+  const blockHeight = CARD_HEIGHT_MM * 2 + CARD_GAP_MM;
+  const frontY = (A4_HEIGHT - blockHeight) / 2;
+  const backY = frontY + CARD_HEIGHT_MM + CARD_GAP_MM;
+
+  for (const [index, { card }] of cards.entries()) {
+    if (index > 0) pdf.addPage();
+
+    const front = await renderCard(card, 'FRONT');
     currentStep++;
     onProgress?.(currentStep, totalSteps);
-  }
 
-  // Process BACK sides
-  const backImages: string[] = [];
-  for (const { card } of cards) {
-    backImages.push(await renderCard(card, 'BACK'));
+    const back = await renderCard(card, 'BACK');
     currentStep++;
     onProgress?.(currentStep, totalSteps);
-  }
 
-  addCardsToPage(pdf, frontImages, 'FRONT');
-  addCardsToPage(pdf, backImages, 'BACK');
+    if (front) pdf.addImage(front, 'PNG', x, frontY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
+    if (back) pdf.addImage(back, 'PNG', x, backY, CARD_WIDTH_MM, CARD_HEIGHT_MM);
+  }
 
   const timestamp = new Date().toISOString().slice(0, 10);
   pdf.save(`cards-export-${timestamp}.pdf`);
 }
 
-function addCardsToPage(pdf: jsPDF, images: string[], label: string): void {
-  const valid = images.filter((img) => !!img);
-  if (valid.length === 0) return;
+/**
+ * Print a single member's card in a new window: the same two renders used by
+ * the PDF export, side by side on one page at true size.
+ *
+ * The previous implementation copied the preview node's innerHTML into a blank
+ * document, which dropped every stylesheet and Tailwind class, then printed an
+ * unstyled box. Rendering to images avoids depending on the page's CSS.
+ */
+export async function printCard(card: MembershipCard): Promise<void> {
+  const front = await renderCard(card, 'FRONT');
+  const back = await renderCard(card, 'BACK');
 
-  const totalPages = Math.ceil(valid.length / CARDS_PER_PAGE);
+  // Same geometry the PDF uses, expressed in CSS mm so the browser prints it
+  // at true card size.
+  const style = `
+    @page { size: A4 portrait; margin: 0; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    body {
+      width: ${A4_WIDTH}mm; height: ${A4_HEIGHT}mm;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: ${CARD_GAP_MM}mm;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    img { width: ${CARD_WIDTH_MM}mm; height: ${CARD_HEIGHT_MM}mm; display: block; }
+  `;
+  const image = (src: string) => (src ? `<img src="${src}" alt="">` : '');
 
-  for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
-    if (pageIdx > 0) pdf.addPage();
+  const win = window.open('', '_blank');
+  if (!win) return;
+  win.document.write(
+    `<!doctype html><html><head><title>Cetak Kartu</title><style>${style}</style></head>` +
+      `<body>${image(front)}${image(back)}</body></html>`,
+  );
+  win.document.close();
 
-    const startIdx = pageIdx * CARDS_PER_PAGE;
-    const pageImages = valid.slice(startIdx, startIdx + CARDS_PER_PAGE);
-
-    // Add page label
-    pdf.setFontSize(8);
-    pdf.setTextColor(150);
-    pdf.text(`${label} - Page ${pageIdx + 1}/${totalPages}`, A4_WIDTH / 2, 5, { align: 'center' });
-
-    // Centre the cards actually placed on this page, so a lone card sits in the
-    // middle of the sheet instead of hugging the left edge.
-    const cols = Math.min(GRID_COLS, pageImages.length);
-    const rows = Math.ceil(pageImages.length / GRID_COLS);
-    const gridWidth = cols * CARD_WIDTH_MM + (cols - 1) * CARD_GAP_MM;
-    const gridHeight = rows * CARD_HEIGHT_MM + (rows - 1) * CARD_GAP_MM;
-    const offsetX = (A4_WIDTH - gridWidth) / 2;
-    const offsetY = (A4_HEIGHT - gridHeight) / 2;
-
-    pageImages.forEach((imgData, i) => {
-      const col = i % GRID_COLS;
-      const row = Math.floor(i / GRID_COLS);
-
-      const x = offsetX + col * (CARD_WIDTH_MM + CARD_GAP_MM);
-      const y = offsetY + row * (CARD_HEIGHT_MM + CARD_GAP_MM);
-
-      pdf.addImage(imgData, 'PNG', x, y, CARD_WIDTH_MM, CARD_HEIGHT_MM);
-
-      // Add subtle border
-      pdf.setDrawColor(200);
-      pdf.setLineWidth(0.1);
-      pdf.rect(x, y, CARD_WIDTH_MM, CARD_HEIGHT_MM);
-    });
-  }
+  // Wait for the images to decode before opening the print dialog, otherwise
+  // the preview comes up blank on a slow machine.
+  const images = Array.from(win.document.images);
+  await Promise.all(
+    images.map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => {}))),
+  );
+  win.focus();
+  win.print();
 }

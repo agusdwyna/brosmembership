@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { membersApi } from './api';
 import { activityLogApi } from './activity-log-api';
@@ -15,6 +15,7 @@ import { companiesApi } from '@/features/companies/api';
 import type { Company } from '@/features/companies/types';
 import { membershipsApi } from '@/features/memberships/api';
 import { CardPreview } from './components/CardPreview';
+import { printCard } from '@/lib/pdf-export';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -85,19 +86,8 @@ export function MemberDetailPage() {
     useFormErrors();
 
   // Card print
-  const printRef = useRef<HTMLDivElement>(null);
   const [cardSide, setCardSide] = useState<'FRONT' | 'BACK'>('FRONT');
-
-  const handlePrintCard = () => {
-    const content = printRef.current;
-    if (!content) return;
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(
-      `<html><head><title>Print Card</title><style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f5f5f5}@media print{body{background:#fff}}</style></head><body>${content.innerHTML}<script>window.onload=function(){window.print();window.close()}</script></body></html>`,
-    );
-    win.document.close();
-  };
+  const [printing, setPrinting] = useState(false);
 
   const loadMember = useCallback(async () => {
     if (!id) return;
@@ -305,6 +295,45 @@ export function MemberDetailPage() {
 
   const currentMembership = member.memberships?.[0];
   const currentCard = currentMembership?.cards?.[0];
+
+  const handlePrintCard = async () => {
+    if (!currentMembership || !currentCard?.cardTemplate) return;
+    setPrinting(true);
+    try {
+      // Printed from the same renderer as the PDF export, so front and back
+      // match the on-screen preview and come out at true card size.
+      await printCard({
+        id: currentCard.id,
+        membershipId: currentCard.membershipId,
+        cardNumber: currentCard.cardNumber,
+        cardTemplateId: currentCard.cardTemplateId,
+        templateVersion: currentCard.templateVersion,
+        issuedAt: currentCard.issuedAt,
+        createdAt: currentCard.createdAt,
+        membership: {
+          id: currentMembership.id,
+          memberId: member.id,
+          startDate: currentMembership.startDate,
+          endDate: currentMembership.endDate,
+          status: currentMembership.status,
+          member: {
+            id: member.id,
+            memberNumber: member.memberNumber,
+            nikLast4: member.nikLast4,
+            qrHash: member.qrHash,
+            fullName: member.fullName,
+            photo: member.photo,
+          },
+          membershipType: currentMembership.membershipType,
+        },
+        cardTemplate: currentCard.cardTemplate,
+      });
+    } catch {
+      toast.error('Gagal menyiapkan kartu untuk dicetak');
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   const historyColumns = [
     { key: 'type', header: 'Type', render: (ms: Membership) => ms.membershipType.name },
@@ -601,7 +630,7 @@ export function MemberDetailPage() {
                 </div>
                 {currentCard.cardTemplate && (
                   <>
-                    <div ref={printRef} className="flex justify-center">
+                    <div className="flex justify-center">
                       <CardPreview
                         card={{
                           id: currentCard.id,
@@ -637,6 +666,7 @@ export function MemberDetailPage() {
                       variant="secondary"
                       className="w-full"
                       onClick={handlePrintCard}
+                      loading={printing}
                     >
                       <Printer className="w-3 h-3" /> Cetak Kartu
                     </Button>
