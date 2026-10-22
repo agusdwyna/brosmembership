@@ -4,6 +4,7 @@ import type { VerificationReport, ScanHistoryReportItem, VisitReportItem } from 
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { DateInput } from '@/components/ui/DateInput';
 import { StatusBadge } from '@/components/ui/Badge';
 import { DataTable } from '@/components/shared/DataTable';
 import { TableToolbar, SearchInput } from '@/components/shared/TableToolbar';
@@ -254,24 +255,26 @@ export function ReportsPage() {
           </Button>
         ))}
         <div className="flex items-center gap-1.5 ml-auto">
-          <input
-            type="date"
+          <DateInput
+            aria-label="Dari tanggal"
             value={dateFrom}
-            onChange={(e) => {
-              setDateFrom(e.target.value);
+            onChange={(v) => {
+              setDateFrom(v);
               setActivePreset(-1);
             }}
-            className="h-8 px-2.5 rounded-[4px] border border-border bg-surface text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand"
+            size="sm"
+            className="w-36"
           />
           <span className="text-muted text-[12px]">–</span>
-          <input
-            type="date"
+          <DateInput
+            aria-label="Sampai tanggal"
             value={dateTo}
-            onChange={(e) => {
-              setDateTo(e.target.value);
+            onChange={(v) => {
+              setDateTo(v);
               setActivePreset(-1);
             }}
-            className="h-8 px-2.5 rounded-[4px] border border-border bg-surface text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand"
+            size="sm"
+            className="w-36"
           />
           <Button
             size="sm"

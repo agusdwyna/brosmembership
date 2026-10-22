@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { DateInput } from '@/components/ui/DateInput';
 import { Select } from '@/components/ui/Select';
 import { DataTable } from '@/components/shared/DataTable';
 import { Modal } from '@/components/ui/Modal';
@@ -510,11 +511,10 @@ export function MemberDetailPage() {
                     error={fieldErrors.email}
                     disabled={saving}
                   />
-                  <Input
+                  <DateInput
                     label="Date of Birth"
-                    type="date"
                     value={form.dateOfBirth || ''}
-                    onChange={(e) => handleProfileChange('dateOfBirth', e.target.value)}
+                    onChange={(v) => handleProfileChange('dateOfBirth', v)}
                     disabled={saving}
                   />
                   <Select
@@ -880,22 +880,20 @@ export function MemberDetailPage() {
             Mengubah periode membership yang sedang aktif. Nomor kartu tetap, tidak ada kartu baru
             yang diterbitkan.
           </p>
-          <Input
+          <DateInput
             label="Tanggal Mulai"
-            type="date"
             value={datesForm.startDate}
-            onChange={(e) => {
-              setDatesForm((prev) => ({ ...prev, startDate: e.target.value }));
+            onChange={(v) => {
+              setDatesForm((prev) => ({ ...prev, startDate: v }));
               setDatesError('');
             }}
             required
           />
-          <Input
+          <DateInput
             label="Tanggal Berakhir"
-            type="date"
             value={datesForm.endDate}
-            onChange={(e) => {
-              setDatesForm((prev) => ({ ...prev, endDate: e.target.value }));
+            onChange={(v) => {
+              setDatesForm((prev) => ({ ...prev, endDate: v }));
               setDatesError('');
             }}
             helper={`Kosongkan untuk memakai durasi tipe (${currentMembership?.membershipType.duration ?? 0} hari).`}

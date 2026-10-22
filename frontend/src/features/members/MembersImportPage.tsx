@@ -18,7 +18,7 @@ import { getErrorMessage } from '@/lib/error';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { DateInput } from '@/components/ui/DateInput';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable } from '@/components/shared/DataTable';
@@ -358,11 +358,12 @@ export function MembersImportPage() {
                     header: 'Tanggal Mulai',
                     width: 'w-40',
                     render: (row) => (
-                      <Input
+                      <DateInput
                         aria-label={`Tanggal mulai baris ${row.rowNumber}`}
-                        type="date"
                         value={row.startDate}
-                        onChange={(e) => updateRow(row.rowNumber, { startDate: e.target.value })}
+                        onChange={(v) => updateRow(row.rowNumber, { startDate: v })}
+                        size="sm"
+                        className="w-40"
                       />
                     ),
                   },

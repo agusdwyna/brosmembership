@@ -14,6 +14,7 @@ import { toast } from '@/components/ui/toast-store';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { DateInput } from '@/components/ui/DateInput';
 import { Select } from '@/components/ui/Select';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 
@@ -135,11 +136,10 @@ export function MemberCreatePage() {
                 error={fieldErrors.email}
                 disabled={loading}
               />
-              <Input
+              <DateInput
                 label="Tanggal Lahir"
-                type="date"
                 value={form.dateOfBirth || ''}
-                onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+                onChange={(v) => handleChange('dateOfBirth', v)}
                 disabled={loading}
               />
               <Select
@@ -178,11 +178,10 @@ export function MemberCreatePage() {
                 disabled={loading}
                 required
               />
-              <Input
+              <DateInput
                 label="Tanggal Mulai"
-                type="date"
                 value={form.startDate}
-                onChange={(e) => handleChange('startDate', e.target.value)}
+                onChange={(v) => handleChange('startDate', v)}
                 error={fieldErrors.startDate}
                 disabled={loading}
                 required

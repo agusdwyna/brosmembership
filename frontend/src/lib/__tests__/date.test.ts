@@ -3,6 +3,9 @@ import {
   formatDate,
   formatDateTime,
   toDateInputValue,
+  toDisplayDate,
+  parseDisplayDate,
+  maskDisplayDate,
   DATE_FORMAT,
   DATE_TIME_FORMAT,
   DATE_INPUT_FORMAT,
@@ -54,5 +57,44 @@ describe('date input values', () => {
   it('returns an empty value for missing input', () => {
     expect(toDateInputValue(null)).toBe('');
     expect(toDateInputValue('')).toBe('');
+  });
+});
+
+describe('day-first input helpers', () => {
+  it('shows the stored date as dd/mm/yyyy', () => {
+    expect(toDisplayDate('2026-10-21')).toBe('21/10/2026');
+    expect(toDisplayDate(new Date(2026, 0, 1))).toBe('01/01/2026');
+    expect(toDisplayDate(null)).toBe('');
+  });
+
+  it('parses dd/mm/yyyy into the API format', () => {
+    expect(parseDisplayDate('21/10/2026')).toBe('2026-10-21');
+    expect(parseDisplayDate('1/2/2026')).toBe('2026-02-01');
+    expect(parseDisplayDate(' 31/12/2026 ')).toBe('2026-12-31');
+  });
+
+  it('rejects impossible and malformed dates instead of rolling them over', () => {
+    // 31 Feb would become 3 March if it were silently normalised.
+    expect(parseDisplayDate('31/02/2026')).toBeNull();
+    expect(parseDisplayDate('2026-10-21')).toBeNull();
+    expect(parseDisplayDate('21/10/26')).toBeNull();
+    expect(parseDisplayDate('')).toBeNull();
+    expect(parseDisplayDate('abc')).toBeNull();
+  });
+
+  it('inserts slashes while typing', () => {
+    expect(maskDisplayDate('2')).toBe('2');
+    expect(maskDisplayDate('21')).toBe('21');
+    expect(maskDisplayDate('2110')).toBe('21/10');
+    expect(maskDisplayDate('21102026')).toBe('21/10/2026');
+    expect(maskDisplayDate('21/10/2026')).toBe('21/10/2026');
+    // Non-digits are ignored and extra digits are dropped.
+    expect(maskDisplayDate('21-10-2026')).toBe('21/10/2026');
+    expect(maskDisplayDate('2110202699')).toBe('21/10/2026');
+  });
+
+  it('keeps a trailing slash so the operator can keep typing', () => {
+    expect(maskDisplayDate('21/')).toBe('21/');
+    expect(maskDisplayDate('21/10/')).toBe('21/10/');
   });
 });
