@@ -127,4 +127,88 @@ describe('MembershipService', () => {
       await expect(service.cancel('ms1', 'officer1')).rejects.toThrow();
     });
   });
+
+  describe('updateDates', () => {
+    const active = () => {
+      (prisma.membership.findUnique as any).mockResolvedValue({
+        ...mockMembership,
+        membershipType: { ...mockMembership.membershipType, defaultCardTemplate: null },
+      });
+      (prisma.membership.update as any).mockImplementation(({ data }: any) => ({
+        ...mockMembership,
+        ...data,
+      }));
+    };
+
+    it('uses an explicit end date, so a promo can be shorter than the type duration', async () => {
+      active();
+
+      await service.updateDates(
+        'ms1',
+        { startDate: new Date('2026-01-20'), endDate: new Date('2026-02-10') },
+        'officer1',
+      );
+
+      expect(prisma.membership.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'ms1' },
+          data: { startDate: new Date('2026-01-20'), endDate: new Date('2026-02-10') },
+        }),
+      );
+    });
+
+    it('defaults the end to start + type duration when no end date is given', async () => {
+      active();
+
+      await service.updateDates('ms1', { startDate: new Date('2026-01-20') }, 'officer1');
+
+      const { endDate } = (prisma.membership.update as any).mock.calls[0][0].data;
+      // 365 days after 20 Jan 2026.
+      expect(endDate.toISOString().slice(0, 10)).toBe('2027-01-20');
+    });
+
+    it('rejects an end date that is not after the start date', async () => {
+      active();
+
+      await expect(
+        service.updateDates(
+          'ms1',
+          { startDate: new Date('2026-02-10'), endDate: new Date('2026-02-10') },
+          'officer1',
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(prisma.membership.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses to edit a cancelled membership', async () => {
+      (prisma.membership.findUnique as any).mockResolvedValue({
+        ...mockMembership,
+        status: 'CANCELLED',
+        membershipType: { ...mockMembership.membershipType, defaultCardTemplate: null },
+      });
+
+      await expect(
+        service.updateDates('ms1', { startDate: new Date('2026-01-20') }, 'officer1'),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it('logs the change with the old and new period', async () => {
+      active();
+      const { activityLogService } = await import('../../activity-log/service');
+
+      await service.updateDates(
+        'ms1',
+        { startDate: new Date('2026-01-20'), endDate: new Date('2026-02-10') },
+        'officer1',
+      );
+
+      expect(activityLogService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'UPDATE_DATES',
+          oldValue: '01/01/2025 — 31/12/2025',
+          newValue: '20/01/2026 — 10/02/2026',
+        }),
+      );
+    });
+  });
 });

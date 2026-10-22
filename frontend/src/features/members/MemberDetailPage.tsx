@@ -14,6 +14,7 @@ import type { MembershipType } from '@/features/membership-types/types';
 import { companiesApi } from '@/features/companies/api';
 import type { Company } from '@/features/companies/types';
 import { membershipsApi } from '@/features/memberships/api';
+import { addDays } from '@/lib/date';
 import { CardPreview } from './components/CardPreview';
 import { printCard } from '@/lib/pdf-export';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -28,7 +29,16 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/toast-store';
 import { getErrorMessage } from '@/lib/error';
-import { RotateCcw, Ban, ArrowRightLeft, Clock, Pencil, Printer, AlertCircle } from 'lucide-react';
+import {
+  RotateCcw,
+  Ban,
+  ArrowRightLeft,
+  CalendarClock,
+  Clock,
+  Pencil,
+  Printer,
+  AlertCircle,
+} from 'lucide-react';
 import { formatDate, formatDateTime, toDateInputValue } from '@/lib/date';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -62,6 +72,12 @@ export function MemberDetailPage() {
     null,
   );
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Edit membership period modal
+  const [showEditDates, setShowEditDates] = useState(false);
+  const [datesForm, setDatesForm] = useState({ startDate: '', endDate: '' });
+  const [datesLoading, setDatesLoading] = useState(false);
+  const [datesError, setDatesError] = useState('');
 
   // Change type modal
   const [showChangeType, setShowChangeType] = useState(false);
@@ -295,6 +311,58 @@ export function MemberDetailPage() {
 
   const currentMembership = member.memberships?.[0];
   const currentCard = currentMembership?.cards?.[0];
+
+  const openEditDates = () => {
+    if (!currentMembership) return;
+    setDatesForm({
+      startDate: toDateInputValue(currentMembership.startDate),
+      endDate: toDateInputValue(currentMembership.endDate),
+    });
+    setDatesError('');
+    setShowEditDates(true);
+  };
+
+  /**
+   * Expiry preview. An empty end date means "recompute from the type duration",
+   * exactly what the API does when the field is left blank, so the operator sees
+   * the value that will actually be saved.
+   */
+  const datesPreviewEnd = (() => {
+    if (!currentMembership || !datesForm.startDate) return null;
+    if (datesForm.endDate) return new Date(datesForm.endDate);
+    return addDays(new Date(datesForm.startDate), currentMembership.membershipType.duration);
+  })();
+
+  const handleSaveDates = async () => {
+    if (!currentMembership) return;
+    setDatesError('');
+
+    if (!datesForm.startDate) {
+      setDatesError('Tanggal mulai wajib diisi');
+      return;
+    }
+    if (datesPreviewEnd && datesPreviewEnd.getTime() <= new Date(datesForm.startDate).getTime()) {
+      setDatesError('Tanggal berakhir harus setelah tanggal mulai');
+      return;
+    }
+
+    setDatesLoading(true);
+    try {
+      await membershipsApi.updateDates(currentMembership.id, {
+        startDate: datesForm.startDate,
+        // Blank = let the API apply the type's duration.
+        endDate: datesForm.endDate || undefined,
+      });
+      toast.success('Tanggal membership diperbarui');
+      setShowEditDates(false);
+      await loadMember();
+      await loadActivityLogs();
+    } catch (err) {
+      setDatesError(getErrorMessage(err, 'Gagal mengubah tanggal membership'));
+    } finally {
+      setDatesLoading(false);
+    }
+  };
 
   const handlePrintCard = async () => {
     if (!currentMembership || !currentCard?.cardTemplate) return;
@@ -553,40 +621,49 @@ export function MemberDetailPage() {
                 <div>
                   <span className="text-muted">End:</span> {formatDate(currentMembership.endDate)}
                 </div>
-                {currentMembership.status === 'ACTIVE' && (
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <Button size="sm" variant="secondary" onClick={openChangeType}>
-                      <ArrowRightLeft className="w-3 h-3" /> Change Type
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {/* Editing the period is allowed on any membership that is
+                      not cancelled; the other lifecycle actions need ACTIVE. */}
+                  {currentMembership.status !== 'CANCELLED' && (
+                    <Button size="sm" variant="secondary" onClick={openEditDates}>
+                      <CalendarClock className="w-3 h-3" /> Ubah Tanggal
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() =>
-                        setConfirmAction({ type: 'renew', targetId: currentMembership.id })
-                      }
-                    >
-                      <RotateCcw className="w-3 h-3" /> Renew
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() =>
-                        setConfirmAction({ type: 'suspend', targetId: currentMembership.id })
-                      }
-                    >
-                      Suspend
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() =>
-                        setConfirmAction({ type: 'cancel', targetId: currentMembership.id })
-                      }
-                    >
-                      <Ban className="w-3 h-3" /> Batalkan
-                    </Button>
-                  </div>
-                )}
+                  )}
+                  {currentMembership.status === 'ACTIVE' && (
+                    <>
+                      <Button size="sm" variant="secondary" onClick={openChangeType}>
+                        <ArrowRightLeft className="w-3 h-3" /> Change Type
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          setConfirmAction({ type: 'renew', targetId: currentMembership.id })
+                        }
+                      >
+                        <RotateCcw className="w-3 h-3" /> Renew
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          setConfirmAction({ type: 'suspend', targetId: currentMembership.id })
+                        }
+                      >
+                        Suspend
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() =>
+                          setConfirmAction({ type: 'cancel', targetId: currentMembership.id })
+                        }
+                      >
+                        <Ban className="w-3 h-3" /> Batalkan
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             ) : (
               <p className="text-[13px] text-muted">Belum ada membership</p>
@@ -791,6 +868,64 @@ export function MemberDetailPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Edit Membership Dates Modal */}
+      <Modal
+        open={showEditDates}
+        onClose={() => setShowEditDates(false)}
+        title="Ubah Tanggal Membership"
+      >
+        <div className="space-y-4">
+          <p className="text-[13px] text-secondary">
+            Mengubah periode membership yang sedang aktif. Nomor kartu tetap, tidak ada kartu baru
+            yang diterbitkan.
+          </p>
+          <Input
+            label="Tanggal Mulai"
+            type="date"
+            value={datesForm.startDate}
+            onChange={(e) => {
+              setDatesForm((prev) => ({ ...prev, startDate: e.target.value }));
+              setDatesError('');
+            }}
+            required
+          />
+          <Input
+            label="Tanggal Berakhir"
+            type="date"
+            value={datesForm.endDate}
+            onChange={(e) => {
+              setDatesForm((prev) => ({ ...prev, endDate: e.target.value }));
+              setDatesError('');
+            }}
+            helper={`Kosongkan untuk memakai durasi tipe (${currentMembership?.membershipType.duration ?? 0} hari).`}
+          />
+          {datesPreviewEnd && (
+            <div className="bg-bg rounded-[4px] px-4 py-3 text-[13px]">
+              <span className="text-secondary">Berakhir: </span>
+              <span className="font-medium">{formatDate(datesPreviewEnd)}</span>
+              {!datesForm.endDate && <span className="text-muted"> (otomatis)</span>}
+            </div>
+          )}
+          {datesError && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 bg-danger/10 text-danger text-[13px] px-4 py-3 rounded-[4px] border border-danger/20"
+            >
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden />
+              <span>{datesError}</span>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setShowEditDates(false)}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveDates} loading={datesLoading}>
+              Simpan
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Change Type Modal */}
       <Modal

@@ -42,6 +42,8 @@ export interface MembershipTypeSummary {
   id: string;
   code: string;
   name: string;
+  /** Days added to a start date to derive the expiry. */
+  duration: number;
 }
 
 export interface MembershipCardSummary {

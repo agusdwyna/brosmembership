@@ -20,6 +20,7 @@ export type ActivityAction =
   | 'CREATE_ROLE'
   | 'UPDATE_ROLE'
   | 'DELETE_ROLE'
+  | 'UPDATE_DATES'
   | 'UPDATE_SETTINGS';
 
 class ActivityLogService {

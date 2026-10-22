@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { membershipController } from './controller';
 import { validate } from '../../middlewares/validate';
 import { requirePermission } from '../../middlewares/auth';
-import { renewMembershipSchema, changeTypeSchema } from './schema';
+import { renewMembershipSchema, changeTypeSchema, updateMembershipDatesSchema } from './schema';
 
 const router = Router();
 
@@ -19,6 +19,12 @@ router.post(
   membershipController.changeType,
 );
 router.post('/:id/renew', canManage, validate(renewMembershipSchema), membershipController.renew);
+router.patch(
+  '/:id/dates',
+  canManage,
+  validate(updateMembershipDatesSchema),
+  membershipController.updateDates,
+);
 router.post('/:id/suspend', canManage, membershipController.suspend);
 router.post('/:id/cancel', canManage, membershipController.cancel);
 

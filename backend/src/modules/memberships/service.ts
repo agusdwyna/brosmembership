@@ -1,8 +1,9 @@
 import { prisma } from '../../config/database';
-import type { RenewMembershipInput, ChangeTypeInput } from './schema';
+import type { RenewMembershipInput, ChangeTypeInput, UpdateMembershipDatesInput } from './schema';
 import { activityLogService } from '../activity-log/service';
 import { generateCardNumber, retryOnUnique } from '../../lib/numbering';
 import { HISTORY_LIMIT } from '../../lib/query';
+import { addDays, formatDate } from '../../lib/date';
 
 export class MembershipService {
   async list(memberId?: string) {
@@ -171,6 +172,48 @@ export class MembershipService {
     });
 
     return this.getById(result.membership.id);
+  }
+
+  /**
+   * Override the period of an existing membership (corrections, a launch promo
+   * that does not match the type's duration, ...).
+   *
+   * This edits the running row in place — no new card, no new membership. An
+   * omitted `endDate` falls back to start + the type's duration, the same rule
+   * registration uses, so leaving the field empty never produces a bogus date.
+   */
+  async updateDates(id: string, input: UpdateMembershipDatesInput, performedBy: string) {
+    const existing = await this.getById(id);
+    if (existing.status === 'CANCELLED') {
+      throw Object.assign(new Error('Membership yang dibatalkan tidak bisa diubah tanggalnya'), {
+        status: 400,
+      });
+    }
+
+    const startDate = input.startDate;
+    const endDate = input.endDate ?? addDays(startDate, existing.membershipType.duration);
+
+    if (endDate.getTime() <= startDate.getTime()) {
+      throw Object.assign(new Error('Tanggal berakhir harus setelah tanggal mulai'), {
+        status: 400,
+      });
+    }
+
+    const updated = await prisma.membership.update({
+      where: { id },
+      data: { startDate, endDate },
+    });
+
+    await activityLogService.log({
+      memberId: existing.memberId,
+      action: 'UPDATE_DATES',
+      description: `Tanggal membership diubah: ${formatDate(startDate)} — ${formatDate(endDate)}`,
+      oldValue: `${formatDate(existing.startDate)} — ${formatDate(existing.endDate)}`,
+      newValue: `${formatDate(startDate)} — ${formatDate(endDate)}`,
+      performedBy,
+    });
+
+    return this.getById(updated.id);
   }
 
   async suspend(id: string, performedBy: string) {

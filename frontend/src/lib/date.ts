@@ -20,6 +20,17 @@ function toDate(value: DateInput): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/**
+ * Add whole days in local time. `setDate` is used instead of
+ * `+ days * 86400000` so a DST transition cannot shift the result by an hour and
+ * turn an expiry date into the previous day.
+ */
+export function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
 /** Renders `21/10/2026`; returns `fallback` for missing or invalid input. */
 export function formatDate(value: DateInput, fallback = '-'): string {
   const date = toDate(value);

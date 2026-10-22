@@ -44,6 +44,19 @@ class MembershipController {
     }
   }
 
+  async updateDates(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await membershipService.updateDates(
+        req.params.id as string,
+        req.body,
+        req.user!.id,
+      );
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async suspend(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await membershipService.suspend(req.params.id as string, req.user!.id);
