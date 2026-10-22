@@ -65,41 +65,46 @@ class CardTemplateService {
     await this.getById(id);
     const { sides, ...data } = input;
 
-    // Update sides: delete existing and recreate
-    if (sides) {
-      await prisma.cardTemplateSide.deleteMany({ where: { cardTemplateId: id } });
-    }
+    // Deleting the old sides and recreating them must be one unit: a failure
+    // between the two used to leave the template with no layout at all.
+    return prisma.$transaction(async (tx) => {
+      if (sides) {
+        await tx.cardTemplateSide.deleteMany({ where: { cardTemplateId: id } });
+      }
 
-    return prisma.cardTemplate.update({
-      where: { id },
-      data: {
-        ...data,
-        ...(sides && {
-          sides: {
-            create: sides.map((s) => ({
-              side: s.side,
-              designUrl: s.designUrl,
-              elements: {
-                create: s.elements.map((el) => ({
-                  type: el.type,
-                  x: el.x,
-                  y: el.y,
-                  width: el.width,
-                  height: el.height,
-                  fontSize: el.fontSize,
-                  fontWeight: el.fontWeight,
-                  alignment: el.alignment,
-                })),
-              },
-            })),
-          },
-        }),
-      },
-      include: {
-        sides: {
-          include: { elements: true },
+      return tx.cardTemplate.update({
+        where: { id },
+        data: {
+          ...data,
+          // A layout change is a new design revision; a rename is not.
+          ...(sides && { version: { increment: 1 } }),
+          ...(sides && {
+            sides: {
+              create: sides.map((s) => ({
+                side: s.side,
+                designUrl: s.designUrl,
+                elements: {
+                  create: s.elements.map((el) => ({
+                    type: el.type,
+                    x: el.x,
+                    y: el.y,
+                    width: el.width,
+                    height: el.height,
+                    fontSize: el.fontSize,
+                    fontWeight: el.fontWeight,
+                    alignment: el.alignment,
+                  })),
+                },
+              })),
+            },
+          }),
         },
-      },
+        include: {
+          sides: {
+            include: { elements: true },
+          },
+        },
+      });
     });
   }
 
@@ -122,20 +127,27 @@ class CardTemplateService {
   async updateSideDesign(templateId: string, side: string, designUrl: string) {
     await this.getById(templateId);
 
-    // Upsert the side
-    await prisma.cardTemplateSide.upsert({
-      where: {
-        cardTemplateId_side: { cardTemplateId: templateId, side },
-      },
-      create: {
-        cardTemplateId: templateId,
-        side,
-        designUrl,
-      },
-      update: {
-        designUrl,
-      },
-    });
+    // Replacing a background image changes what is printed, so it is a new
+    // design revision alongside the side write.
+    await prisma.$transaction([
+      prisma.cardTemplateSide.upsert({
+        where: {
+          cardTemplateId_side: { cardTemplateId: templateId, side },
+        },
+        create: {
+          cardTemplateId: templateId,
+          side,
+          designUrl,
+        },
+        update: {
+          designUrl,
+        },
+      }),
+      prisma.cardTemplate.update({
+        where: { id: templateId },
+        data: { version: { increment: 1 } },
+      }),
+    ]);
 
     return this.getById(templateId);
   }

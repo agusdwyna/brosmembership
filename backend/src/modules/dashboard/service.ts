@@ -46,9 +46,18 @@ class DashboardService {
       memberStatusCounts,
     ] = await Promise.all([
       prisma.member.count({ where: { deletedAt: null } }),
-      prisma.membership.count({ where: { status: 'ACTIVE' } }),
+      // Soft-deleted members keep their membership rows, but they are gone from
+      // the operator's point of view: counting them made "active memberships",
+      // "expiring soon" and the overview chart disagree with the member list.
       prisma.membership.count({
-        where: { status: 'ACTIVE', endDate: { gte: now, lte: expiringSoonUntil } },
+        where: { status: 'ACTIVE', member: { deletedAt: null } },
+      }),
+      prisma.membership.count({
+        where: {
+          status: 'ACTIVE',
+          endDate: { gte: now, lte: expiringSoonUntil },
+          member: { deletedAt: null },
+        },
       }),
       prisma.scanHistory.count({ where: { createdAt: { gte: todayStart } } }),
       prisma.visit.count({ where: { createdAt: { gte: todayStart } } }),
@@ -65,11 +74,12 @@ class DashboardService {
       }),
       prisma.membership.groupBy({
         by: ['status'],
+        where: { member: { deletedAt: null } },
         _count: { id: true },
       }),
       prisma.membership.groupBy({
         by: ['membershipTypeId'],
-        where: { status: 'ACTIVE' },
+        where: { status: 'ACTIVE', member: { deletedAt: null } },
         _count: { id: true },
       }),
       prisma.member.groupBy({

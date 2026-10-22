@@ -29,10 +29,10 @@ vi.mock('../../../config/database', () => ({
           findUnique: vi.fn(),
         },
         membershipCard: {
-          count: vi.fn(),
           create: vi.fn(),
           update: vi.fn(),
         },
+        $queryRawUnsafe: vi.fn().mockResolvedValue([]),
       }),
     ),
   },

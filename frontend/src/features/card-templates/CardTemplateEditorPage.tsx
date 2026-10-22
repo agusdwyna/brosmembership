@@ -47,6 +47,7 @@ export function CardTemplateEditorPage() {
   const [loading, setLoading] = useState(!isNew);
   const [templateDbId, setTemplateDbId] = useState<string | null>(isNew ? null : id || null);
   const [templateStatus, setTemplateStatus] = useState('ACTIVE');
+  const [templateVersion, setTemplateVersion] = useState(1);
   const [confirmAction, setConfirmAction] = useState<'deactivate' | 'activate' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -61,6 +62,7 @@ export function CardTemplateEditorPage() {
         setName(t.name);
         setTemplateDbId(t.id);
         setTemplateStatus(t.status || 'ACTIVE');
+        setTemplateVersion(t.version);
 
         if (t.sides.length > 0) {
           setSides(
@@ -260,6 +262,7 @@ export function CardTemplateEditorPage() {
     id: templateDbId ?? 'preview',
     name: name || 'Untitled',
     status: templateStatus,
+    version: templateVersion,
     sides,
     createdAt: '',
     updatedAt: '',

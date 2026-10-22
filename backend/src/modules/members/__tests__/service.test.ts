@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { hashNik } from '../../../lib/nik';
 
 const txMock = {
-  member: { create: vi.fn(), count: vi.fn() },
+  member: { create: vi.fn() },
   membership: { create: vi.fn() },
-  membershipCard: { create: vi.fn(), count: vi.fn() },
+  membershipCard: { create: vi.fn() },
+  // Numbering asks for the highest existing number per prefix.
+  $queryRawUnsafe: vi.fn(),
 };
 
 vi.mock('../../../config/database', () => ({
@@ -40,11 +42,8 @@ const baseInput = {
 };
 
 function primeHappyPath() {
-  (prisma.member.count as any).mockResolvedValue(0);
-  (prisma.membershipCard.count as any).mockResolvedValue(0);
-  // Numbering now runs inside the transaction (tx.member/tx.membershipCard).
-  (txMock.member.count as any).mockResolvedValue(0);
-  (txMock.membershipCard.count as any).mockResolvedValue(0);
+  // No rows yet → the first number in the window.
+  (txMock.$queryRawUnsafe as any).mockResolvedValue([]);
   (prisma.member.findUnique as any).mockResolvedValue({ id: 'm1' });
   (txMock.member.create as any).mockResolvedValue({ id: 'm1', memberNumber: 'M-000001' });
   (txMock.membership.create as any).mockResolvedValue({ id: 'ms1' });
@@ -303,6 +302,48 @@ describe('MemberService', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('create — duplicate NIK', () => {
+    const primeTemplate = () => {
+      (prisma.membershipType.findUnique as any).mockResolvedValue({
+        id: 'mt1',
+        name: 'Gold',
+        duration: 365,
+        status: 'ACTIVE',
+        defaultCardTemplateId: 'tpl-gold',
+        defaultCardTemplate: { id: 'tpl-gold', status: 'ACTIVE', version: 4 },
+      });
+    };
+
+    it('returns a readable 409 instead of retrying or a generic duplicate', async () => {
+      primeTemplate();
+      const { Prisma } = await import('@prisma/client');
+      const unique = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['nikHash'] },
+      });
+      (txMock.member.create as any).mockRejectedValue(unique);
+
+      await expect(service.create(baseInput as any, 'officer1')).rejects.toMatchObject({
+        message: 'NIK sudah terdaftar untuk member lain',
+        status: 409,
+      });
+
+      // One attempt only: a duplicate NIK can never be fixed by re-running.
+      expect(txMock.member.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('stamps the new card with the template revision it was printed from', async () => {
+      primeTemplate();
+
+      await service.create(baseInput as any, 'officer1');
+
+      expect(createdCardTemplateId()).toBe('tpl-gold');
+      const data = (txMock.membershipCard.create as any).mock.calls[0][0].data;
+      expect(data.templateVersion).toBe(4);
     });
   });
 });

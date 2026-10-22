@@ -7,7 +7,12 @@ import {
 } from './schema';
 import { activityLogService } from '../activity-log/service';
 import { LIST_LIMIT } from '../../lib/query';
-import { generateCardNumber, generateMemberNumber, retryOnUnique } from '../../lib/numbering';
+import {
+  generateCardNumber,
+  generateMemberNumber,
+  isUniqueViolationOf,
+  retryOnUnique,
+} from '../../lib/numbering';
 import { generateQrToken, hashNik, last4Nik } from '../../lib/nik';
 
 /** Best-effort row number from a row that failed schema validation. */
@@ -133,15 +138,15 @@ class MemberService {
 
     // A type may still point at a template that was later deactivated. Treat
     // that as "no default" and fall through, rather than printing retired art.
-    let cardTemplateId =
+    let template =
       membershipType.defaultCardTemplate?.status === 'ACTIVE'
-        ? membershipType.defaultCardTemplateId
+        ? membershipType.defaultCardTemplate
         : null;
 
     // Fall back to the oldest ACTIVE template. The filter matters: without it a
     // deactivated template would be handed out silently, contradicting the
     // picker UI which only ever offers active templates.
-    if (!cardTemplateId) {
+    if (!template) {
       const fallbackTemplate = await prisma.cardTemplate.findFirst({
         where: { status: 'ACTIVE' },
         orderBy: { createdAt: 'asc' },
@@ -151,15 +156,17 @@ class MemberService {
           new Error('Tidak ada template kartu aktif. Buat atau aktifkan template terlebih dahulu.'),
           { status: 400 },
         );
-      cardTemplateId = fallbackTemplate.id;
+      template = fallbackTemplate;
     }
+    const cardTemplateId = template.id;
 
     const endDate = new Date(input.startDate);
     endDate.setDate(endDate.getDate() + membershipType.duration);
 
-    // Numbers are derived from a row count, so generate them INSIDE the
-    // transaction and retry the whole write if a unique constraint trips — two
-    // concurrent registrations can otherwise pick the same number.
+    // The number comes from the highest already issued, so a concurrent create
+    // can still pick the same one. Generate inside the transaction and retry on
+    // a number collision only; `retryOnUnique` deliberately ignores a duplicate
+    // NIK, which re-running could never fix.
     const result = await retryOnUnique(() =>
       prisma.$transaction(async (tx) => {
         const memberNumber = await generateMemberNumber(tx);
@@ -196,12 +203,21 @@ class MemberService {
             membershipId: membership.id,
             cardNumber,
             cardTemplateId,
+            // The layout revision this card was printed from.
+            templateVersion: template.version,
           },
         });
 
         return { member, membership, card };
       }),
-    );
+    ).catch((err) => {
+      // The unique index on nikHash is what enforces "one member per NIK". Map
+      // it to a readable 409 instead of the generic handler's "Data sudah ada".
+      if (isUniqueViolationOf(err, 'nikHash')) {
+        throw Object.assign(new Error('NIK sudah terdaftar untuk member lain'), { status: 409 });
+      }
+      throw err;
+    });
 
     // Log activity
     await activityLogService.log({

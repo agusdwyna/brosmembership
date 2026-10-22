@@ -16,7 +16,10 @@ router.post(
   validate(registerSchema),
   authController.register,
 );
-router.post('/login', validate(loginSchema), loginLimiter, authController.login);
+// Limiter BEFORE validation: a malformed body used to be rejected by Zod before
+// the throttle counted it, so a brute-force loop could send garbage bodies for
+// free. Order does not weaken normal use — the key is IP + submitted email.
+router.post('/login', loginLimiter, validate(loginSchema), authController.login);
 router.get('/me', authMiddleware, authController.me);
 router.patch('/me', authMiddleware, validate(updateMeSchema), authController.updateMe);
 router.patch(

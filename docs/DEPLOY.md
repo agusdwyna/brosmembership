@@ -135,7 +135,8 @@ SEED_ADMIN_PASSWORD=password-kuat-admin
 # SEED_OFFICER_PASSWORD=password-kuat-officer
 
 # Hanya bila memang ingin menjalankan seed lagi (mis. menyegarkan permission
-# role bawaan setelah update aplikasi). Kosongkan setelah selesai.
+# role bawaan setelah update aplikasi). Butuh RUN_SEED=true. Kosongkan setelah
+# selesai.
 # SEED_FORCE=false
 ```
 
@@ -155,10 +156,15 @@ SEED_ADMIN_PASSWORD=password-kuat-admin
   `RUN_SEED=true` yang lupa dimatikan **tidak** akan membuat ulang company,
   tipe membership, template, akun, atau role yang sudah Anda hapus.
   Tetap disarankan set `false` setelah deploy pertama.
-- **`SEED_FORCE=true`** memaksa seed berjalan lagi. Gunakan hanya bila perlu
-  menyegarkan permission role bawaan (`IT_GOD`/`ADMIN`/`OFFICER`) setelah
-  update aplikasi — data lain juga akan di-upsert (bukan diduplikasi), tetapi
-  item yang sudah dihapus akan muncul kembali.
+- **`SEED_FORCE=true`** memaksa seed berjalan lagi (butuh `RUN_SEED=true` juga).
+  Gunakan hanya bila perlu menyegarkan permission role bawaan
+  (`IT_GOD`/`ADMIN`/`OFFICER`) setelah update aplikasi — data lain juga akan
+  di-upsert (bukan diduplikasi), tetapi item yang sudah dihapus akan muncul
+  kembali.
+- **Seed bersifat all-or-nothing.** Seluruh seed, termasuk penanda
+  `seed.version`, dijalankan dalam satu transaksi. Kalau gagal di tengah,
+  tidak ada data setengah jadi dan penanda tidak tertulis — jadi deploy
+  berikutnya mencoba lagi dari awal, bukan menumpuk data parsial.
 - Seed **tidak mengembalikan izin role kustom**; hanya role bawaan yang
   disinkronkan.
 - **Hanya `SEED_ADMIN_PASSWORD` yang wajib.** `SEED_OFFICER_PASSWORD` opsional —

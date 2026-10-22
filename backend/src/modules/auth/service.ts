@@ -97,8 +97,13 @@ export class AuthService {
   }
 
   generateTokens(payload: { id: string; email: string; role: string }): AuthTokens {
-    const accessToken = jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN as any });
-    const refreshToken = jwt.sign(payload, env.JWT_SECRET, {
+    // `type` keeps the two tokens distinct even though they share a secret:
+    // authMiddleware only accepts `access`, so a leaked refresh token cannot be
+    // used as a 7-day API credential.
+    const accessToken = jwt.sign({ ...payload, type: 'access' }, env.JWT_SECRET, {
+      expiresIn: env.JWT_EXPIRES_IN as any,
+    });
+    const refreshToken = jwt.sign({ ...payload, type: 'refresh' }, env.JWT_SECRET, {
       expiresIn: env.JWT_REFRESH_EXPIRES_IN as any,
     });
     return { accessToken, refreshToken };

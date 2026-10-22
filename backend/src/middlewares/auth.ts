@@ -34,7 +34,15 @@ export async function authMiddleware(
   try {
     const payload = jwt.verify(token, env.JWT_SECRET, {
       algorithms: ['HS256'],
-    }) as AuthUser;
+    }) as AuthUser & { type?: string };
+
+    // Both tokens are signed with the same secret, so without this check the
+    // 7-day refresh token would also authenticate — a much longer-lived
+    // credential than the 1-day access token it is meant to sit beside.
+    if (payload.type === 'refresh') {
+      res.status(401).json({ error: 'Token tidak valid atau expired' });
+      return;
+    }
 
     // Re-check the user on every request. The JWT can stay valid for a day, so
     // without this a deactivated account (or a demoted admin) would keep its

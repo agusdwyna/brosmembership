@@ -20,6 +20,19 @@ class VisitService {
     });
     if (!member) throw Object.assign(new Error('Member tidak ditemukan'), { status: 404 });
 
+    // The membership id comes from the client, so it must be proven to belong
+    // to this member — otherwise a visit could be filed against someone else's
+    // membership and skew their history.
+    if (input.membershipId) {
+      const membership = await prisma.membership.findFirst({
+        where: { id: input.membershipId, memberId: input.memberId },
+        select: { id: true },
+      });
+      if (!membership) {
+        throw Object.assign(new Error('Membership tidak sesuai dengan member'), { status: 400 });
+      }
+    }
+
     try {
       return await prisma.visit.create({
         data: {

@@ -1,13 +1,13 @@
 import type { Request, Response, NextFunction } from 'express';
 import { membershipService } from './service';
-import { listResponse } from '../../lib/query';
+import { listResponse, HISTORY_LIMIT } from '../../lib/query';
 
 class MembershipController {
   async list(req: Request, res: Response, next: NextFunction) {
     try {
       const memberId = req.query.memberId as string | undefined;
       const data = await membershipService.list(memberId);
-      listResponse(res, data);
+      listResponse(res, data, HISTORY_LIMIT);
     } catch (err) {
       next(err);
     }

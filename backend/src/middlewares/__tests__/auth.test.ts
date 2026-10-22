@@ -19,9 +19,11 @@ function makeRes() {
   return res;
 }
 
-const token = jwt.sign({ id: 'u1', email: 'a@b.co', role: 'ADMIN' }, 'test-secret', {
-  expiresIn: '1d',
-});
+const token = jwt.sign(
+  { id: 'u1', email: 'a@b.co', role: 'ADMIN', type: 'access' },
+  'test-secret',
+  { expiresIn: '1d' },
+);
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -82,6 +84,28 @@ describe('authMiddleware', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user.role).toBe('OFFICER');
+  });
+
+  it('rejects a refresh token — it must not work as an API credential', async () => {
+    const refresh = jwt.sign(
+      { id: 'u1', email: 'a@b.co', role: 'ADMIN', type: 'refresh' },
+      'test-secret',
+      { expiresIn: '7d' },
+    );
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.co',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    });
+    const req: any = { headers: { authorization: `Bearer ${refresh}` } };
+    const res = makeRes();
+    const next = vi.fn();
+
+    await authMiddleware(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
   });
 
   it('rejects a token signed with the wrong secret', async () => {

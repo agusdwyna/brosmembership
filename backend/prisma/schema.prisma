@@ -143,6 +143,10 @@ model CardTemplate {
   id           String   @id @default(cuid())
   name         String
   status       String   @default("ACTIVE") // ACTIVE | INACTIVE
+  // Design revision. Bumped whenever the layout (sides/elements) changes, so a
+  // card records the version it was printed with instead of silently picking up
+  // later edits. Renames do not bump it; they do not change what is printed.
+  version      Int      @default(1)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

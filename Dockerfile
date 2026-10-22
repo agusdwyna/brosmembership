@@ -95,8 +95,10 @@ FROM node:24-bookworm-slim AS runtime
 # curl: Coolify's own health check shells out to curl/wget; without it the
 # container is reported unhealthy even when the app is up. (The Dockerfile
 # HEALTHCHECK below uses node, but Coolify replaces it with its own probe.)
+# tzdata: the images default to UTC, which shifts every "today"/"this month"
+# bucket (dashboard, reports, number reset windows) seven hours away from WIB.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends nginx gettext-base openssl curl \
+    && apt-get install -y --no-install-recommends nginx gettext-base openssl curl tzdata \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/nginx/sites-enabled/default
 
@@ -136,10 +138,13 @@ RUN chmod +x /app/docker/docker-entrypoint.sh \
 # Two ports on purpose: nginx listens publicly on PORT (80) and the Express API
 # binds API_PORT (3002) on the container's internal interface. They must differ —
 # the same port cannot be bound by both processes.
+# TZ: business day boundaries (dashboard "today", reports, numbering reset
+# windows) are WIB, not UTC. Override with a TZ variable in Coolify if needed.
 ENV NODE_ENV=production \
     PORT=80 \
     API_PORT=3002 \
-    API_PREFIX=/api
+    API_PREFIX=/api \
+    TZ=Asia/Jakarta
 
 # Uploaded images are written to /app/backend/uploads (see src/config/uploads.ts).
 # Mount a volume here in Coolify so they survive redeploys.

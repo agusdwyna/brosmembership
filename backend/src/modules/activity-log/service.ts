@@ -51,6 +51,9 @@ class ActivityLogService {
         officer: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
+      // A member can accumulate an entry per visit; without a ceiling the detail
+      // page loads the entire history on every open.
+      take: HISTORY_LIMIT,
     });
   }
 

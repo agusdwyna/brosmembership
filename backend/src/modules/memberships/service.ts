@@ -2,6 +2,7 @@ import { prisma } from '../../config/database';
 import type { RenewMembershipInput, ChangeTypeInput } from './schema';
 import { activityLogService } from '../activity-log/service';
 import { generateCardNumber, retryOnUnique } from '../../lib/numbering';
+import { HISTORY_LIMIT } from '../../lib/query';
 
 export class MembershipService {
   async list(memberId?: string) {
@@ -14,6 +15,9 @@ export class MembershipService {
         cards: true,
       },
       orderBy: { createdAt: 'desc' },
+      // Same ceiling as every other list endpoint; without it a growing table
+      // turns each request into an unbounded query.
+      take: HISTORY_LIMIT,
     });
   }
 
@@ -67,11 +71,11 @@ export class MembershipService {
         });
 
         // Never issue a card against a retired template or an empty FK.
-        const cardTemplateId =
+        const template =
           newType.defaultCardTemplate?.status === 'ACTIVE'
-            ? newType.defaultCardTemplateId
-            : existing.cards[0]?.cardTemplateId;
-        if (!cardTemplateId) {
+            ? newType.defaultCardTemplate
+            : existing.cards[0]?.cardTemplate;
+        if (!template) {
           throw Object.assign(new Error('Tidak ada template kartu aktif untuk diterbitkan.'), {
             status: 400,
           });
@@ -81,7 +85,8 @@ export class MembershipService {
           data: {
             membershipId: updated.id,
             cardNumber: await generateCardNumber(tx),
-            cardTemplateId,
+            cardTemplateId: template.id,
+            templateVersion: template.version,
           },
         });
 
@@ -132,11 +137,11 @@ export class MembershipService {
           include: { defaultCardTemplate: true },
         });
 
-        const cardTemplateId =
+        const template =
           type?.defaultCardTemplate?.status === 'ACTIVE'
-            ? type.defaultCardTemplateId
-            : existing.cards[0]?.cardTemplateId;
-        if (!cardTemplateId) {
+            ? type.defaultCardTemplate
+            : existing.cards[0]?.cardTemplate;
+        if (!template) {
           throw Object.assign(new Error('Tidak ada template kartu aktif untuk diterbitkan.'), {
             status: 400,
           });
@@ -146,7 +151,8 @@ export class MembershipService {
           data: {
             membershipId: membership.id,
             cardNumber: await generateCardNumber(tx),
-            cardTemplateId,
+            cardTemplateId: template.id,
+            templateVersion: template.version,
           },
         });
 

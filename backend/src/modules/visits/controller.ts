@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { visitService } from './service';
 import { listResponse, HISTORY_LIMIT } from '../../lib/query';
+import { parseDateRange } from '../../lib/date-range';
 
 class VisitController {
   async record(req: Request, res: Response, next: NextFunction) {
@@ -15,10 +16,16 @@ class VisitController {
   async list(req: Request, res: Response, next: NextFunction) {
     try {
       const { dateFrom, dateTo } = req.query;
-      const data = await visitService.list({
-        dateFrom: dateFrom ? new Date(dateFrom as string) : undefined,
-        dateTo: dateTo ? new Date(dateTo as string) : undefined,
-      });
+
+      // Same contract as scan history: 400 for a malformed date, and `dateTo`
+      // includes the whole final day instead of stopping at midnight.
+      const range = parseDateRange(dateFrom, dateTo);
+      if (!range) {
+        res.status(400).json({ error: 'Format tanggal harus YYYY-MM-DD' });
+        return;
+      }
+
+      const data = await visitService.list({ dateFrom: range.from, dateTo: range.to });
       listResponse(res, data, HISTORY_LIMIT);
     } catch (err) {
       next(err);

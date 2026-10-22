@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+// `nullish` rather than `optional` on every nullable column below: Prisma
+// returns `null` (not `undefined`) for an unset value. The editor loads a saved
+// template, changes the name and PUTs the same sides/elements back, so `null`
+// must be accepted — otherwise renaming a template whose side has no background
+// image (or whose element has no font settings) fails with "Validasi gagal".
 const elementSchema = z.object({
   id: z.string().optional(),
   type: z.enum(['MEMBER_NAME', 'MEMBER_NUMBER', 'MEMBERSHIP_NAME', 'EXPIRY_DATE', 'QR_CODE']),
@@ -7,14 +12,14 @@ const elementSchema = z.object({
   y: z.number(),
   width: z.number(),
   height: z.number(),
-  fontSize: z.number().optional(),
-  fontWeight: z.enum(['normal', 'bold']).optional(),
-  alignment: z.enum(['left', 'center', 'right']).optional(),
+  fontSize: z.number().nullish(),
+  fontWeight: z.enum(['normal', 'bold']).nullish(),
+  alignment: z.enum(['left', 'center', 'right']).nullish(),
 });
 
 const sideSchema = z.object({
   side: z.enum(['FRONT', 'BACK']),
-  designUrl: z.string().optional(),
+  designUrl: z.string().nullish(),
   elements: z.array(elementSchema).default([]),
 });
 

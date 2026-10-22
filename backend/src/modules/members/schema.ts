@@ -1,5 +1,28 @@
 import { z } from 'zod';
 
+/**
+ * Parse a date the form sends as a plain string.
+ *
+ * `<input type="date">` submits `''` when left untouched, and `new Date('')` is
+ * an *Invalid Date* — truthy, so `input.dateOfBirth || null` passed it straight
+ * to Prisma and every member created without a birth date failed with a 500.
+ * An empty value therefore means "not provided"; a non-empty value that does not
+ * parse is rejected with a readable message instead of reaching the database.
+ */
+const optionalDate = (label: string) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => (v ? new Date(v) : undefined))
+    .refine((d) => d === undefined || !Number.isNaN(d.getTime()), `${label} tidak valid`);
+
+const requiredDate = (label: string) =>
+  z
+    .string()
+    .min(1, `${label} wajib diisi`)
+    .transform((v) => new Date(v))
+    .refine((d) => !Number.isNaN(d.getTime()), `${label} tidak valid`);
+
 export const createMemberSchema = z.object({
   fullName: z.string().min(2, 'Nama lengkap minimal 2 karakter'),
   nik: z
@@ -11,13 +34,10 @@ export const createMemberSchema = z.object({
   email: z.string().email('Email tidak valid').optional().or(z.literal('')),
   photo: z.string().optional(),
   address: z.string().optional(),
-  dateOfBirth: z
-    .string()
-    .transform((v) => new Date(v))
-    .optional(),
+  dateOfBirth: optionalDate('Tanggal lahir'),
   companyId: z.string().optional(),
   membershipTypeId: z.string().min(1, 'Membership type wajib dipilih'),
-  startDate: z.string().transform((v) => new Date(v)),
+  startDate: requiredDate('Tanggal mulai'),
 });
 
 export const updateMemberSchema = z.object({
@@ -34,10 +54,7 @@ export const updateMemberSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   photo: z.string().optional(),
   address: z.string().optional(),
-  dateOfBirth: z
-    .string()
-    .transform((v) => new Date(v))
-    .optional(),
+  dateOfBirth: optionalDate('Tanggal lahir'),
   companyId: z.string().optional(),
 });
 

@@ -4,6 +4,7 @@ vi.mock('../../../config/database', () => ({
   prisma: {
     visit: { findUnique: vi.fn(), create: vi.fn(), findMany: vi.fn() },
     member: { findFirst: vi.fn() },
+    membership: { findFirst: vi.fn() },
   },
 }));
 
@@ -45,5 +46,30 @@ describe('VisitService.record', () => {
     expect(prisma.visit.create).toHaveBeenCalledWith({
       data: { memberId: 'm1', membershipId: null, scanId: 's2', officerId: 'officer1' },
     });
+  });
+
+  it('accepts a membership that belongs to the scanned member', async () => {
+    (prisma.visit.findUnique as any).mockResolvedValue(null);
+    (prisma.member.findFirst as any).mockResolvedValue({ id: 'm1' });
+    (prisma.membership.findFirst as any).mockResolvedValue({ id: 'ms1' });
+    (prisma.visit.create as any).mockResolvedValue({ id: 'v3' });
+
+    await service.record({ memberId: 'm1', membershipId: 'ms1' }, 'officer1');
+
+    expect(prisma.membership.findFirst).toHaveBeenCalledWith({
+      where: { id: 'ms1', memberId: 'm1' },
+      select: { id: true },
+    });
+  });
+
+  it("rejects another member's membership with 400", async () => {
+    (prisma.visit.findUnique as any).mockResolvedValue(null);
+    (prisma.member.findFirst as any).mockResolvedValue({ id: 'm1' });
+    (prisma.membership.findFirst as any).mockResolvedValue(null);
+
+    await expect(
+      service.record({ memberId: 'm1', membershipId: 'ms-other' }, 'officer1'),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(prisma.visit.create).not.toHaveBeenCalled();
   });
 });

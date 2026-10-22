@@ -4,28 +4,47 @@ import { settingsService } from '../modules/settings/service';
 /** Any Prisma client: the base client or a transaction client. */
 type Db = Prisma.TransactionClient;
 
-/** The date window a reset-scoped sequence counts within. */
-function resetWindow(reset: string, now: Date): { start?: Date; end?: Date } {
-  if (reset === 'MONTHLY') {
-    return {
-      start: new Date(now.getFullYear(), now.getMonth(), 1),
-      end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
-    };
-  }
-  if (reset === 'YEARLY') {
-    return {
-      start: new Date(now.getFullYear(), 0, 1),
-      end: new Date(now.getFullYear(), 11, 31, 23, 59, 59),
-    };
-  }
-  return {};
+/**
+ * Next numeric suffix for a prefix-scoped sequence.
+ *
+ * The suffix comes from the highest number already issued for this prefix, NOT
+ * from `count()`. Counting breaks after any hard delete: removing one row makes
+ * the next number equal to an existing one, and every retry then regenerates
+ * the same collision, so registrations fail until someone adds a row back.
+ *
+ * Ordering by length then lexicographically is exact for zero-padded strings
+ * and avoids casting a customer-editable prefix (which may contain digits).
+ * Table/column are code-owned literals, never client input.
+ */
+async function nextSuffix(
+  tx: Db,
+  spec: { table: 'members' | 'membership_cards'; column: 'memberNumber' | 'cardNumber' },
+  prefix: string,
+  suffixLength: number,
+) {
+  const rows = await tx.$queryRawUnsafe<{ number: string }[]>(
+    `SELECT "${spec.column}" AS number FROM "${spec.table}"
+       WHERE "${spec.column}" LIKE $1 || '%'
+       ORDER BY length("${spec.column}") DESC, "${spec.column}" DESC
+       LIMIT 1`,
+    prefix,
+  );
+
+  const last = rows[0]?.number;
+  if (!last) return '1'.padStart(suffixLength, '0');
+
+  const suffix = Number(last.slice(prefix.length));
+  if (!Number.isFinite(suffix)) return '1'.padStart(suffixLength, '0');
+  return String(suffix + 1).padStart(suffixLength, '0');
 }
 
 /**
- * Sequence length is derived from a row count, so two concurrent creates can
- * generate the same number. Callers must run generation inside their
- * transaction and wrap the whole write in `retryOnUnique`, which re-runs the
- * transaction when the unique constraint trips.
+ * Retry a transaction when a generated member/card number collides.
+ *
+ * Only `memberNumber`/`cardNumber` are retried. Every other unique violation —
+ * most importantly a duplicate NIK — is a real client error that re-running can
+ * never fix; retrying it just repeated five full transactions before surfacing
+ * a generic message.
  */
 export function retryOnUnique<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
   return (async () => {
@@ -33,12 +52,27 @@ export function retryOnUnique<T>(fn: () => Promise<T>, attempts = 5): Promise<T>
       try {
         return await fn();
       } catch (err) {
-        const isUnique =
-          err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
-        if (!isUnique || attempt >= attempts) throw err;
+        if (attempt >= attempts || !isSequenceCollision(err)) throw err;
       }
     }
   })();
+}
+
+/** The columns named by a P2002 (unique constraint) error, if any. */
+function uniqueTarget(err: unknown): string[] {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') return [];
+  const target = err.meta?.target;
+  return Array.isArray(target) ? target : typeof target === 'string' ? [target] : [];
+}
+
+/** A P2002 whose unique target is a generated number, not an intrinsic column. */
+export function isSequenceCollision(err: unknown): boolean {
+  return uniqueTarget(err).some((f) => f === 'memberNumber' || f === 'cardNumber');
+}
+
+/** True when `err` is a unique violation on `column`. */
+export function isUniqueViolationOf(err: unknown, column: string): boolean {
+  return uniqueTarget(err).includes(column);
 }
 
 export async function generateMemberNumber(tx: Db): Promise<string> {
@@ -49,25 +83,18 @@ export async function generateMemberNumber(tx: Db): Promise<string> {
   const yy = String(now.getFullYear()).slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const datePart = reset === 'MONTHLY' ? `${yy}${mm}` : reset === 'YEARLY' ? yy : '';
-  const { start, end } = resetWindow(reset, now);
+  const prefix = `${customPrefix}${datePart}`;
 
-  const count = await tx.member.count({
-    where: start && end ? { createdAt: { gte: start, lte: end } } : undefined,
-  });
-
-  return `${customPrefix}${datePart}${String(count + 1).padStart(6, '0')}`;
+  return `${prefix}${await nextSuffix(tx, { table: 'members', column: 'memberNumber' }, prefix, 6)}`;
 }
 
 export async function generateCardNumber(tx: Db): Promise<string> {
   const prefix = await settingsService.getString('cardNumberPrefix');
-  const reset = await settingsService.getString('cardNumberReset');
 
-  const now = new Date();
-  const { start, end } = resetWindow(reset, now);
-
-  const count = await tx.membershipCard.count({
-    where: start && end ? { createdAt: { gte: start, lte: end } } : undefined,
-  });
-
-  return `${prefix}${String(count + 1).padStart(6, '0')}`;
+  return `${prefix}${await nextSuffix(
+    tx,
+    { table: 'membership_cards', column: 'cardNumber' },
+    prefix,
+    6,
+  )}`;
 }

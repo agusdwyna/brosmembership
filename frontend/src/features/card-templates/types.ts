@@ -9,15 +9,16 @@ export interface CardTemplateElement {
   y: number;
   width: number;
   height: number;
-  fontSize?: number;
-  fontWeight?: 'normal' | 'bold';
-  alignment?: 'left' | 'center' | 'right';
+  // The API returns `null` for unset columns (Prisma), not `undefined`.
+  fontSize?: number | null;
+  fontWeight?: 'normal' | 'bold' | null;
+  alignment?: 'left' | 'center' | 'right' | null;
 }
 
 export interface CardTemplateSide {
   id: string;
   side: SideType;
-  designUrl?: string;
+  designUrl?: string | null;
   elements: CardTemplateElement[];
 }
 
@@ -25,6 +26,8 @@ export interface CardTemplate {
   id: string;
   name: string;
   status: string;
+  /** Design revision; bumped when the layout changes, not on rename. */
+  version: number;
   sides: CardTemplateSide[];
   createdAt: string;
   updatedAt: string;
@@ -34,7 +37,8 @@ export interface CreateCardTemplateInput {
   name: string;
   sides: {
     side: SideType;
-    designUrl?: string;
+    // Sent back as `null` when a loaded side has no background image.
+    designUrl?: string | null;
     elements: Omit<CardTemplateElement, 'id'>[];
   }[];
 }
