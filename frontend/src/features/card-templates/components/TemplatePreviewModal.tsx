@@ -83,16 +83,19 @@ export function TemplatePreviewModal({
           id: s.id,
           side: s.side,
           designUrl: s.designUrl ?? null,
+          // Spread the element instead of listing fields: a hand-written map is
+          // how `color` went missing here while the card (which reads the
+          // element directly) rendered it correctly. Any field added to the
+          // template element now reaches the preview automatically.
           elements: s.elements.map((el, idx) => ({
-            id: el.id ?? `preview-${s.side}-${idx}`,
-            type: el.type,
-            x: el.x,
-            y: el.y,
-            width: el.width,
-            height: el.height,
+            ...el,
             fontSize: el.fontSize ?? null,
             fontWeight: el.fontWeight ?? null,
             alignment: el.alignment ?? null,
+            color: el.color ?? null,
+            // Unsaved editor elements have a generated id; give every preview
+            // element a stable, side-scoped one.
+            id: el.id ?? `preview-${s.side}-${idx}`,
           })),
         })),
       },
