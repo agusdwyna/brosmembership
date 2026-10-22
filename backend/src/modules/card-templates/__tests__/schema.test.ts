@@ -63,6 +63,43 @@ describe('updateCardTemplateSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts a #RRGGBB text color, including null for automatic', () => {
+    const withColor = updateCardTemplateSchema.safeParse({
+      sides: [
+        {
+          side: 'FRONT',
+          elements: [{ type: 'QR_CODE', x: 0, y: 0, width: 80, height: 80, color: '#B82230' }],
+        },
+      ],
+    });
+    expect(withColor.success).toBe(true);
+
+    const automatic = updateCardTemplateSchema.safeParse({
+      sides: [
+        {
+          side: 'FRONT',
+          elements: [{ type: 'QR_CODE', x: 0, y: 0, width: 80, height: 80, color: null }],
+        },
+      ],
+    });
+    expect(automatic.success).toBe(true);
+  });
+
+  it.each(['red', 'rgb(1,2,3)', '#FFF', 'url(javascript:alert(1))', '#12345G'])(
+    'rejects a color that is not #RRGGBB (%s)',
+    (color) => {
+      const result = updateCardTemplateSchema.safeParse({
+        sides: [
+          {
+            side: 'FRONT',
+            elements: [{ type: 'QR_CODE', x: 0, y: 0, width: 80, height: 80, color }],
+          },
+        ],
+      });
+      expect(result.success).toBe(false);
+    },
+  );
+
   it('still rejects a name shorter than 2 characters', () => {
     const result = updateCardTemplateSchema.safeParse({ name: 'A' });
     expect(result.success).toBe(false);

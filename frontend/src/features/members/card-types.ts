@@ -45,6 +45,7 @@ export interface MembershipCard {
         fontSize?: number | null;
         fontWeight?: string | null;
         alignment?: string | null;
+        color?: string | null;
       }[];
     }[];
   };

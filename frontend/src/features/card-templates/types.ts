@@ -13,6 +13,8 @@ export interface CardTemplateElement {
   fontSize?: number | null;
   fontWeight?: 'normal' | 'bold' | null;
   alignment?: 'left' | 'center' | 'right' | null;
+  /** Text color as #RRGGBB. Null = automatic contrast against the artwork. */
+  color?: string | null;
 }
 
 export interface CardTemplateSide {

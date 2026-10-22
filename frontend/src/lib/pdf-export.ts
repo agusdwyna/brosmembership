@@ -127,7 +127,9 @@ function drawElement(
   const weight = el.fontWeight || 'normal';
   ctx.font = `${weight} ${fontSize}px ${CARD_FONT}`;
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = contrastColor(ctx, el, scale);
+  // An explicit color from the template wins; otherwise pick a readable one
+  // from whatever artwork sits behind the text.
+  ctx.fillStyle = el.color || contrastColor(ctx, el, scale);
 
   const align = el.alignment || 'left';
   ctx.textAlign = align === 'center' ? 'center' : align === 'right' ? 'right' : 'left';

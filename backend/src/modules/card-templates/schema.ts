@@ -15,6 +15,12 @@ const elementSchema = z.object({
   fontSize: z.number().nullish(),
   fontWeight: z.enum(['normal', 'bold']).nullish(),
   alignment: z.enum(['left', 'center', 'right']).nullish(),
+  // #RRGGBB only: the value is written straight into CSS/canvas, so anything
+  // else (named colors, rgb(), url()) must not reach the renderer.
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Warna harus format #RRGGBB')
+    .nullish(),
 });
 
 const sideSchema = z.object({
@@ -32,3 +38,4 @@ export const updateCardTemplateSchema = createCardTemplateSchema.partial();
 
 export type CreateCardTemplateInput = z.infer<typeof createCardTemplateSchema>;
 export type UpdateCardTemplateInput = z.infer<typeof updateCardTemplateSchema>;
+export type CardTemplateElementInput = z.infer<typeof elementSchema>;

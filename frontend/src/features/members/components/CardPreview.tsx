@@ -73,6 +73,8 @@ export function CardPreview({ card, side = 'FRONT' }: CardPreviewProps) {
             fontSize: el.fontSize ? `${el.fontSize}px` : '12px',
             fontWeight: el.fontWeight || 'normal',
             textAlign: (el.alignment as any) || 'left',
+            // Unset = automatic: inherit the surrounding ink color.
+            color: el.color || undefined,
             display: 'flex',
             alignItems: 'center',
             justifyContent:

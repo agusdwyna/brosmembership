@@ -1,6 +1,26 @@
 import { prisma } from '../../config/database';
-import type { CreateCardTemplateInput, UpdateCardTemplateInput } from './schema';
+import type {
+  CreateCardTemplateInput,
+  UpdateCardTemplateInput,
+  CardTemplateElementInput,
+} from './schema';
 import { LIST_LIMIT } from '../../lib/query';
+
+/**
+ * Element fields written to the database. Shared by create and update so a new
+ * property (e.g. `color`) cannot be added to one path and forgotten in the other.
+ */
+const elementData = (el: CardTemplateElementInput) => ({
+  type: el.type,
+  x: el.x,
+  y: el.y,
+  width: el.width,
+  height: el.height,
+  fontSize: el.fontSize,
+  fontWeight: el.fontWeight,
+  alignment: el.alignment,
+  color: el.color,
+});
 
 class CardTemplateService {
   async list() {
@@ -39,16 +59,7 @@ class CardTemplateService {
             side: s.side,
             designUrl: s.designUrl,
             elements: {
-              create: s.elements.map((el) => ({
-                type: el.type,
-                x: el.x,
-                y: el.y,
-                width: el.width,
-                height: el.height,
-                fontSize: el.fontSize,
-                fontWeight: el.fontWeight,
-                alignment: el.alignment,
-              })),
+              create: s.elements.map(elementData),
             },
           })),
         },
@@ -84,16 +95,7 @@ class CardTemplateService {
                 side: s.side,
                 designUrl: s.designUrl,
                 elements: {
-                  create: s.elements.map((el) => ({
-                    type: el.type,
-                    x: el.x,
-                    y: el.y,
-                    width: el.width,
-                    height: el.height,
-                    fontSize: el.fontSize,
-                    fontWeight: el.fontWeight,
-                    alignment: el.alignment,
-                  })),
+                  create: s.elements.map(elementData),
                 },
               })),
             },

@@ -66,6 +66,7 @@ interface VerificationResponse {
           fontSize?: number | null;
           fontWeight?: string | null;
           alignment?: string | null;
+          color?: string | null;
         }[];
       }[];
     };
@@ -162,6 +163,7 @@ export class ScannerService {
               fontSize: el.fontSize,
               fontWeight: el.fontWeight,
               alignment: el.alignment,
+              color: el.color,
             })),
           })),
         }

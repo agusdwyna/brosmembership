@@ -182,6 +182,9 @@ model CardTemplateElement {
   fontSize           Float?
   fontWeight         String? // normal | bold
   alignment          String? // left | center | right
+  // Text color as #RRGGBB. Null = the renderer's automatic contrast color, which
+  // is what cards printed before this column existed keep using.
+  color              String?
 
   side CardTemplateSide @relation(fields: [cardTemplateSideId], references: [id], onDelete: Cascade)
 

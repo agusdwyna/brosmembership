@@ -77,7 +77,7 @@ export function TemplateThumbnail({
             height: el.height * scale,
             fontSize: Math.max(7, (el.fontSize || 11) * scale),
             fontWeight: el.fontWeight || 'normal',
-            color: ELEMENT_COLORS[el.type] || '#53627C',
+            color: el.color || ELEMENT_COLORS[el.type] || '#53627C',
             background: `${ELEMENT_COLORS[el.type] || '#53627C'}20`,
             border: `1px solid ${ELEMENT_COLORS[el.type] || '#53627C'}`,
           }}

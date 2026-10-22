@@ -42,6 +42,7 @@ export interface VerifyResponse {
           fontSize?: number | null;
           fontWeight?: string | null;
           alignment?: string | null;
+          color?: string | null;
         }[];
       }[];
     };

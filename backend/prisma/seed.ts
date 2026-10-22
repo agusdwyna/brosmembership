@@ -131,19 +131,53 @@ async function main() {
                   side: 'FRONT',
                   elements: {
                     create: [
-                      { type: 'MEMBER_NAME', x: 20, y: 120, width: 260, height: 30, fontSize: 16, fontWeight: 'bold', alignment: 'left' },
-                      { type: 'MEMBER_NUMBER', x: 20, y: 155, width: 260, height: 20, fontSize: 12, fontWeight: 'normal', alignment: 'left' },
-                      { type: 'MEMBERSHIP_NAME', x: 20, y: 180, width: 260, height: 20, fontSize: 14, fontWeight: 'bold', alignment: 'left' },
-                      { type: 'EXPIRY_DATE', x: 20, y: 210, width: 260, height: 20, fontSize: 11, fontWeight: 'normal', alignment: 'left' },
+                      {
+                        type: 'MEMBER_NAME',
+                        x: 20,
+                        y: 120,
+                        width: 260,
+                        height: 30,
+                        fontSize: 16,
+                        fontWeight: 'bold',
+                        alignment: 'left',
+                      },
+                      {
+                        type: 'MEMBER_NUMBER',
+                        x: 20,
+                        y: 155,
+                        width: 260,
+                        height: 20,
+                        fontSize: 12,
+                        fontWeight: 'normal',
+                        alignment: 'left',
+                      },
+                      {
+                        type: 'MEMBERSHIP_NAME',
+                        x: 20,
+                        y: 180,
+                        width: 260,
+                        height: 20,
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                        alignment: 'left',
+                      },
+                      {
+                        type: 'EXPIRY_DATE',
+                        x: 20,
+                        y: 210,
+                        width: 260,
+                        height: 20,
+                        fontSize: 11,
+                        fontWeight: 'normal',
+                        alignment: 'left',
+                      },
                     ],
                   },
                 },
                 {
                   side: 'BACK',
                   elements: {
-                    create: [
-                      { type: 'QR_CODE', x: 160, y: 20, width: 80, height: 80 },
-                    ],
+                    create: [{ type: 'QR_CODE', x: 160, y: 20, width: 80, height: 80 }],
                   },
                 },
               ],
@@ -258,7 +292,9 @@ async function main() {
       ? `Users seeded: ${ADMIN_EMAIL} (IT_GOD), ${OFFICER_EMAIL} (OFFICER)`
       : `Users seeded: ${ADMIN_EMAIL} (IT_GOD)`,
   );
-  console.log('Passwords diambil dari SEED_ADMIN_PASSWORD / SEED_OFFICER_PASSWORD — tidak dicetak.');
+  console.log(
+    'Passwords diambil dari SEED_ADMIN_PASSWORD / SEED_OFFICER_PASSWORD — tidak dicetak.',
+  );
 }
 
 main()

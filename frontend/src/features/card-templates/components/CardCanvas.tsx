@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Stage, Layer, Image as KonvaImage, Rect, Text, Transformer, Group } from 'react-konva';
 import type Konva from 'konva';
 import type { CardTemplateElement, ElementType } from '../types';
+import { MIN_ELEMENT_SIZE, computeResize } from '../resize';
 
 // Card dimensions (credit card size scaled up for editing)
 export const CARD_WIDTH = 400;
@@ -77,20 +78,24 @@ export function CardCanvas({
 
   // Handle transform end (resize)
   const handleTransformEnd = useCallback(
-    (id: string, e: Konva.KonvaEventObject<Event>) => {
+    (element: CardTemplateElement, id: string, e: Konva.KonvaEventObject<Event>) => {
       const node = e.target;
-      const scaleX = node.scaleX();
-      const scaleY = node.scaleY();
 
-      // Reset scale and apply to size
+      // `node.width()` is the transformer's scale base, not the element size:
+      // a Konva Group reports width 0, which used to collapse every resize to
+      // the 30×30 minimum. Use the element's stored width/height instead.
+      const next = computeResize(element, {
+        x: node.x(),
+        y: node.y(),
+        scaleX: node.scaleX(),
+        scaleY: node.scaleY(),
+      });
+
+      // Reset scale and apply it to the size, so the next drag starts at 1.
       node.scaleX(1);
       node.scaleY(1);
 
-      const MIN_SIZE = 30;
-      const newWidth = Math.round(Math.max(MIN_SIZE, node.width() * scaleX));
-      const newHeight = Math.round(Math.max(MIN_SIZE, node.height() * scaleY));
-
-      onResize(id, Math.round(node.x()), Math.round(node.y()), newWidth, newHeight);
+      onResize(id, next.x, next.y, next.width, next.height);
     },
     [onResize],
   );
@@ -137,7 +142,7 @@ export function CardCanvas({
               onClick={() => onSelect(el.id || `el-${idx}`)}
               onTap={() => onSelect(el.id || `el-${idx}`)}
               onDragEnd={(e) => handleDragEnd(el.id || `el-${idx}`, e)}
-              onTransformEnd={(e) => handleTransformEnd(el.id || `el-${idx}`, e)}
+              onTransformEnd={(e) => handleTransformEnd(el, el.id || `el-${idx}`, e)}
             >
               <Rect
                 width={el.width}
@@ -150,7 +155,9 @@ export function CardCanvas({
               <Text
                 text={ELEMENT_LABELS[el.type]}
                 fontSize={11}
-                fill={ELEMENT_COLORS[el.type]}
+                // Show the operator's text color here too, so the effect of the
+                // picker is visible against the side's background artwork.
+                fill={el.color || ELEMENT_COLORS[el.type]}
                 fontStyle="bold"
                 width={el.width}
                 height={el.height}
@@ -172,7 +179,9 @@ export function CardCanvas({
             limitStrokeScale={true}
             boundBoxFunc={(oldBox, newBox) => {
               // Prevent elements from becoming too small
-              if (newBox.width < 30 || newBox.height < 30) return oldBox;
+              if (newBox.width < MIN_ELEMENT_SIZE || newBox.height < MIN_ELEMENT_SIZE) {
+                return oldBox;
+              }
               return newBox;
             }}
           />

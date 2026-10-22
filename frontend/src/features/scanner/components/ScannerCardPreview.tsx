@@ -70,6 +70,7 @@ export function ScannerCardPreview({ card, member, membership }: ScannerCardPrev
             fontSize: el.fontSize ? `${el.fontSize * Math.min(scaleX, scaleY)}px` : '10px',
             fontWeight: el.fontWeight || 'normal',
             textAlign: (el.alignment as any) || 'left',
+            color: el.color || undefined,
             display: 'flex',
             alignItems: 'center',
             justifyContent:

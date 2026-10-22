@@ -22,7 +22,7 @@ export function PropertyEditor({ element, onChange, onDelete }: PropertyEditorPr
     );
   }
 
-  const update = (field: keyof CardTemplateElement, value: string | number) => {
+  const update = (field: keyof CardTemplateElement, value: string | number | null) => {
     onChange({ ...element, [field]: value });
   };
 
@@ -92,6 +92,37 @@ export function PropertyEditor({ element, onChange, onDelete }: PropertyEditorPr
               value={element.alignment || 'left'}
               onChange={(e) => update('alignment', e.target.value)}
             />
+            {/*
+              Text color. The native picker always holds some value, so it is
+              paired with an explicit "Otomatis" toggle: automatic is the null
+              case, where the card picks a readable color from the artwork.
+            */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor={`color-${element.id}`}
+                className="block text-[13px] font-medium text-foreground"
+              >
+                Warna Teks
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id={`color-${element.id}`}
+                  type="color"
+                  aria-label="Pilih warna teks"
+                  value={element.color || '#3A3F52'}
+                  onChange={(e) => update('color', e.target.value)}
+                  className="h-9 w-12 rounded-[4px] border border-border bg-surface p-0.5"
+                />
+                <Button
+                  variant={element.color ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => update('color', null)}
+                  title="Pakai warna otomatis yang kontras dengan latar"
+                >
+                  {element.color ? 'Otomatis' : 'Otomatis ✓'}
+                </Button>
+              </div>
+            </div>
           </>
         )}
       </CardContent>
