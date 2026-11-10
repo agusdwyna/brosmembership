@@ -49,16 +49,21 @@ export function CameraScanner({ onScan, active }: CameraScannerProps) {
       const scanner = new Html5Qrcode(containerId);
       scannerRef.current = scanner;
 
+      // Measure the container before starting. The stream is forced square
+      // (aspectRatio 1.0), so the video is as wide as the container; a fixed
+      // scan box at 70% of that width is always inside the frame. A `qrbox`
+      // function is avoided on purpose: html5-qrcode can call it while the
+      // video height is still 0 and throw, which leaves the preview visible
+      // but the scan loop dead.
+      const containerWidth = document.getElementById(containerId)?.clientWidth || 300;
+      const scanBoxSize = Math.max(150, Math.min(300, Math.floor(containerWidth * 0.7)));
+
       await scanner.start(
         { facingMode: 'environment' },
         {
           fps: 10,
-          // Size the scan box relative to the video so it stays usable on both
-          // narrow phones and wide desktop cards.
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
-            return { width: size, height: size };
-          },
+          aspectRatio: 1.0,
+          qrbox: { width: scanBoxSize, height: scanBoxSize },
           disableFlip: false,
         },
         (decodedText) => {
