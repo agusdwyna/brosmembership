@@ -2,12 +2,12 @@
 
 Satu container melayani semuanya pada port **80**:
 
-| Path | Dilayani oleh |
-|------|----------------|
-| `/` | SPA React (hasil build Vite, statis via nginx) |
-| `/api/*` | Express API (Node) |
-| `/uploads/*` | Gambar member/kartu |
-| `/health` | Liveness probe (untuk healthcheck Coolify) |
+| Path         | Dilayani oleh                                  |
+| ------------ | ---------------------------------------------- |
+| `/`          | SPA React (hasil build Vite, statis via nginx) |
+| `/api/*`     | Express API (Node)                             |
+| `/uploads/*` | Gambar member/kartu                            |
+| `/health`    | Liveness probe (untuk healthcheck Coolify)     |
 
 Frontend dan API berada di origin yang sama, jadi SPA memanggil `/api` secara
 relatif — tidak perlu domain terpisah, CORS, atau `VITE_API_URL`.
@@ -43,14 +43,14 @@ relatif — tidak perlu domain terpisah, CORS, atau `VITE_API_URL`.
 
 ## 1. File deployment di repo
 
-| File | Fungsi |
-|------|--------|
-| `Dockerfile` | Multi-stage: builder (npm ci + build) → runtime (nginx + node, dependency produksi saja) |
-| `.dockerignore` | Mengecilkan build context dan mencegah `.env`/secret masuk ke image |
-| `docker/nginx.conf.template` | Konfigurasi nginx; `$PORT` dan `$API_PORT` dirender saat container start |
+| File                          | Fungsi                                                                                                           |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `Dockerfile`                  | Multi-stage: builder (npm ci + build) → runtime (nginx + node, dependency produksi saja)                         |
+| `.dockerignore`               | Mengecilkan build context dan mencegah `.env`/secret masuk ke image                                              |
+| `docker/nginx.conf.template`  | Konfigurasi nginx; `$PORT` dan `$API_PORT` dirender saat container start                                         |
 | `docker/docker-entrypoint.sh` | Render nginx → `prisma migrate deploy` (dengan retry) → backfill hash NIK → seed opsional → jalankan nginx + API |
-| `docker-compose.yml` | Opsional, untuk build pack **Docker Compose** |
-| `docs/DEPLOY.md` | Dokumen ini |
+| `docker-compose.yml`          | Opsional, untuk build pack **Docker Compose**                                                                    |
+| `docs/DEPLOY.md`              | Dokumen ini                                                                                                      |
 
 Tidak ada secret yang tertanam di image. Semua dikirim Coolify lewat
 **Environment Variables** saat container berjalan.
@@ -95,10 +95,10 @@ proses container saat start.
 
 ### Wajib
 
-| Variabel | Nilai |
-|----------|-------|
-| `DATABASE_URL` | Internal URL PostgreSQL dari langkah 2 |
-| `JWT_SECRET` | String acak kuat, mis. hasil `openssl rand -hex 32` |
+| Variabel       | Nilai                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL` | Internal URL PostgreSQL dari langkah 2                                                                                                                 |
+| `JWT_SECRET`   | String acak kuat, mis. hasil `openssl rand -hex 32`                                                                                                    |
 | `NIK_HASH_KEY` | Kunci HMAC untuk hash NIK, min. 32 karakter (`openssl rand -hex 32`). **Jangan diubah setelah ada member** — semua hash NIK lama tidak akan cocok lagi |
 
 ### Salin-tempel (sesuaikan nilainya)
@@ -124,6 +124,11 @@ TRUST_PROXY=2
 
 # Migrasi otomatis saat container start.
 RUN_MIGRATIONS=true
+
+# Folder gambar upload. Harus SAMA dengan Destination Path volume persistent
+# di Coolify. Default di image sudah /app/backend/uploads; ubah hanya bila
+# volume Anda dipasang di path lain (mis. /app/uploads).
+UPLOADS_DIR=/app/backend/uploads
 
 # Cukup sekali per database: seed menulis penanda `seed.version`, sehingga
 # redeploy berikutnya otomatis dilewati walau nilai ini masih true.
@@ -222,6 +227,7 @@ gagal cepat bila variabel wajib belum diisi.
 
 1. Pastikan `RUN_SEED=true` dan `SEED_*` sudah diisi.
 2. Klik **Deploy** dan pantau log. Urutan startup:
+
    ```
    ▶ Menyiapkan konfigurasi nginx
    ▶ Menerapkan migrasi database (prisma migrate deploy)
@@ -234,6 +240,7 @@ gagal cepat bila variabel wajib belum diisi.
    Pada deploy pertama setelah update privasi NIK, log akan menampilkan
    `Backfill NIK: N member …` lalu `kolom plaintext "nik" dihapus`. Setelah itu
    langkah ini otomatis dilewati.
+
 3. Buka domain → login dengan `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
 4. Kembali ke **Environment Variables** → ubah `RUN_SEED=false` → **Save**.
    (Kalau lupa pun aman: penanda `seed.version` membuat seed dilewati.)
@@ -271,23 +278,24 @@ member, membership, kunjungan, dan log tidak hilang.
 
 ## 7. Troubleshooting
 
-| Gejala | Penyebab umum | Solusi |
-|--------|----------------|--------|
-| Deploy gagal: `JWT_SECRET wajib diisi…` | Secret kosong/pakai nilai default | Isi `JWT_SECRET` dengan string acak kuat |
-| Deploy gagal: `NIK_HASH_KEY wajib diisi…` | Kunci hash NIK kosong/terlalu pendek | Isi `NIK_HASH_KEY` dengan `openssl rand -hex 32` |
-| Scan via NIK / cek duplikat berhenti cocok setelah ganti env | `NIK_HASH_KEY` diubah | Kembalikan kunci lama. Hash lama tidak bisa dipulihkan dengan kunci baru |
-| Migrasi gagal / `P1001: Can't reach database server` | `DATABASE_URL` salah atau DB beda network | Salin internal URL dari resource PostgreSQL; pastikan satu project/environment |
-| `P1000` / authentication failed | Password salah atau karakter khusus tidak di-encode | URL-encode password, cek user/database |
-| Deploy berhenti di `Menunggu database siap` | DB belum selesai start | Entrypoint retry ±45 detik; cek status DB lalu redeploy |
-| Seed gagal: `SEED_ADMIN_PASSWORD … wajib diisi` | `RUN_SEED=true` tanpa password admin | Isi `SEED_ADMIN_PASSWORD`. Officer opsional |
-| Data seed (company, tipe, template) muncul lagi setelah redeploy | `RUN_SEED=true` menetap dan versi lama menjalankan seed setiap start | Versi ini punya penanda `seed.version`; set `RUN_SEED=false`. Untuk DB lama, tambahkan penanda manual (lihat bagian 5) |
-| Ingin menyegarkan permission role bawaan setelah update | — | Set `SEED_FORCE=true` sekali, lalu kosongkan lagi |
-| Container restart berulang setelah seed gagal | Entrypoint lama berhenti saat seed error | Sudah diperbaiki: seed gagal hanya di-log, app tetap jalan |
-| App jalan tapi 502 dari domain | Container belum siap / port salah | Cek log container; pastikan **Ports Exposes = 80** dan `PORT=80` |
-| Upload gambar hilang setelah redeploy | Volume belum dipasang | Tambahkan volume ke `/app/backend/uploads` |
-| Semua user kena rate limit yang sama | `TRUST_PROXY` kurang | Set `TRUST_PROXY=2` (Coolify proxy + nginx) |
-| Login berhasil tapi fitur tertentu tidak muncul | Role tidak punya permission | Atur di **Pengaturan → Peran & Akses** |
-| `prisma migrate deploy` error checksum | File migrasi lama diubah | Jangan edit migrasi yang sudah diterapkan; buat migrasi baru |
+| Gejala                                                           | Penyebab umum                                                                                                                                      | Solusi                                                                                                                                                                                                 |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Deploy gagal: `JWT_SECRET wajib diisi…`                          | Secret kosong/pakai nilai default                                                                                                                  | Isi `JWT_SECRET` dengan string acak kuat                                                                                                                                                               |
+| Deploy gagal: `NIK_HASH_KEY wajib diisi…`                        | Kunci hash NIK kosong/terlalu pendek                                                                                                               | Isi `NIK_HASH_KEY` dengan `openssl rand -hex 32`                                                                                                                                                       |
+| Scan via NIK / cek duplikat berhenti cocok setelah ganti env     | `NIK_HASH_KEY` diubah                                                                                                                              | Kembalikan kunci lama. Hash lama tidak bisa dipulihkan dengan kunci baru                                                                                                                               |
+| Migrasi gagal / `P1001: Can't reach database server`             | `DATABASE_URL` salah atau DB beda network                                                                                                          | Salin internal URL dari resource PostgreSQL; pastikan satu project/environment                                                                                                                         |
+| `P1000` / authentication failed                                  | Password salah atau karakter khusus tidak di-encode                                                                                                | URL-encode password, cek user/database                                                                                                                                                                 |
+| Deploy berhenti di `Menunggu database siap`                      | DB belum selesai start                                                                                                                             | Entrypoint retry ±45 detik; cek status DB lalu redeploy                                                                                                                                                |
+| Seed gagal: `SEED_ADMIN_PASSWORD … wajib diisi`                  | `RUN_SEED=true` tanpa password admin                                                                                                               | Isi `SEED_ADMIN_PASSWORD`. Officer opsional                                                                                                                                                            |
+| Data seed (company, tipe, template) muncul lagi setelah redeploy | `RUN_SEED=true` menetap dan versi lama menjalankan seed setiap start                                                                               | Versi ini punya penanda `seed.version`; set `RUN_SEED=false`. Untuk DB lama, tambahkan penanda manual (lihat bagian 5)                                                                                 |
+| Ingin menyegarkan permission role bawaan setelah update          | —                                                                                                                                                  | Set `SEED_FORCE=true` sekali, lalu kosongkan lagi                                                                                                                                                      |
+| Container restart berulang setelah seed gagal                    | Entrypoint lama berhenti saat seed error                                                                                                           | Sudah diperbaiki: seed gagal hanya di-log, app tetap jalan                                                                                                                                             |
+| App jalan tapi 502 dari domain                                   | Container belum siap / port salah                                                                                                                  | Cek log container; pastikan **Ports Exposes = 80** dan `PORT=80`                                                                                                                                       |
+| Upload gambar hilang setelah redeploy                            | Volume belum dipasang ke `/app/backend/uploads`, jadi gambar ditulis ke layer container dan ikut terhapus                                          | Tambahkan volume `uploads` → `/app/backend/uploads` (atau set `UPLOADS_DIR` ke path volume yang dipakai). Log API menampilkan peringatan `Folder upload kosong` saat start bila volume tidak terpasang |
+| Gambar upload di browser balas **401**                           | Versi lama: file yang tidak ada jatuh ke middleware auth sehingga terlihat seperti masalah izin. Versi ini membalas **404 `File tidak ditemukan`** | Cek log container untuk peringatan folder upload; bila muncul, perbaiki volume lalu unggah ulang gambarnya — file lama tidak bisa dipulihkan dari container                                            |
+| Semua user kena rate limit yang sama                             | `TRUST_PROXY` kurang                                                                                                                               | Set `TRUST_PROXY=2` (Coolify proxy + nginx)                                                                                                                                                            |
+| Login berhasil tapi fitur tertentu tidak muncul                  | Role tidak punya permission                                                                                                                        | Atur di **Pengaturan → Peran & Akses**                                                                                                                                                                 |
+| `prisma migrate deploy` error checksum                           | File migrasi lama diubah                                                                                                                           | Jangan edit migrasi yang sudah diterapkan; buat migrasi baru                                                                                                                                           |
 
 Log lengkap ada di Coolify → application → **Logs**.
 

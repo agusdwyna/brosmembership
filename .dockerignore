@@ -17,7 +17,8 @@ dist
 coverage
 **/coverage
 
-# User-uploaded images are runtime data, supplied via the /app/uploads volume.
+# User-uploaded images are runtime data, supplied via the /app/backend/uploads
+# volume (the path declared in the Dockerfile — see src/config/uploads.ts).
 backend/uploads/*
 !backend/uploads/.gitkeep
 

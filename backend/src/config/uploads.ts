@@ -2,7 +2,15 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-const uploadDir = path.resolve(__dirname, '../../uploads');
+/**
+ * Where uploaded images live. Defaults to `backend/uploads`, which is the path
+ * the Dockerfile declares as a VOLUME — so the volume configured in Coolify
+ * must be mounted there. `UPLOADS_DIR` exists for deployments that mount it
+ * somewhere else; the API serves this same directory at /uploads.
+ */
+export const uploadDir = process.env.UPLOADS_DIR
+  ? path.resolve(process.env.UPLOADS_DIR)
+  : path.resolve(__dirname, '../../uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 // Only raster images are accepted. SVG is deliberately excluded: it can carry

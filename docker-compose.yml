@@ -24,6 +24,9 @@ services:
       API_PREFIX: /api
       # Business day boundaries (dashboard, reports, number resets) are WITA.
       TZ: ${TZ:-Asia/Makassar}
+      # Must match the volume mount below; images are written here and served at
+      # /uploads. Override only if you mount the volume at a different path.
+      UPLOADS_DIR: ${UPLOADS_DIR:-/app/backend/uploads}
 
       # ── Required (fail fast if absent) ────────────────────────────────
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL wajib diisi}

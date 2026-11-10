@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { prisma } from './config/database';
 import { env } from './config/env';
+import { uploadDir } from './config/uploads';
 import { errorHandler } from './middlewares/error-handler';
 import { notFoundHandler } from './middlewares/not-found';
 import { authRoutes } from './modules/auth/routes';
@@ -59,12 +60,20 @@ app.use(globalLimiter);
 
 app.use(
   '/uploads',
-  express.static(path.resolve(__dirname, '../uploads'), {
+  express.static(uploadDir, {
     setHeaders: (res) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
     },
   }),
 );
+
+// A missing upload must answer 404, not fall through to the auth middleware
+// below — that turned every vanished design image into a misleading 401 and
+// made it look like a permissions problem instead of a missing file (e.g. an
+// uploads volume that was not mounted on redeploy).
+app.use('/uploads', (_req, res) => {
+  res.status(404).json({ error: 'File tidak ditemukan' });
+});
 
 // ─── Health Check ───────────────────────────────────────
 
@@ -142,4 +151,20 @@ app.use(errorHandler);
 app.listen(env.API_PORT, () => {
   console.log(`🚀 API running on http://localhost:${env.API_PORT}`);
   console.log(`📋 Health: http://localhost:${env.API_PORT}/health`);
+
+  // An uploads directory that exists but is empty on a running instance almost
+  // always means the Coolify volume is not mounted at uploadDir: the images were
+  // written into the container layer and died with the previous deploy. Say it
+  // loudly here instead of letting every /uploads request 404 in the browser.
+  try {
+    const isEmpty = fs.readdirSync(uploadDir).every((name) => name === '.gitkeep');
+    if (isEmpty) {
+      console.warn(
+        `⚠️  Folder upload kosong: ${uploadDir}. Gambar yang diunggah akan hilang saat redeploy — ` +
+          'pastikan volume persistent Coolify dipasang ke path ini (atau set UPLOADS_DIR sesuai path volume).',
+      );
+    }
+  } catch (err) {
+    console.warn(`⚠️  Tidak dapat membaca folder upload ${uploadDir}:`, err);
+  }
 });

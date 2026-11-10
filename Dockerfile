@@ -145,7 +145,8 @@ ENV NODE_ENV=production \
     PORT=80 \
     API_PORT=3002 \
     API_PREFIX=/api \
-    TZ=Asia/Makassar
+    TZ=Asia/Makassar \
+    UPLOADS_DIR=/app/backend/uploads
 
 # Uploaded images are written to /app/backend/uploads (see src/config/uploads.ts).
 # Mount a volume here in Coolify so they survive redeploys.
