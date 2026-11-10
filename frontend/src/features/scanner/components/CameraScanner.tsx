@@ -53,8 +53,12 @@ export function CameraScanner({ onScan, active }: CameraScannerProps) {
         { facingMode: 'environment' },
         {
           fps: 10,
-          qrbox: { width: 200, height: 200 },
-          aspectRatio: 1.0,
+          // Size the scan box relative to the video so it stays usable on both
+          // narrow phones and wide desktop cards.
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
+            return { width: size, height: size };
+          },
           disableFlip: false,
         },
         (decodedText) => {
@@ -100,7 +104,7 @@ export function CameraScanner({ onScan, active }: CameraScannerProps) {
       <div
         id={containerId}
         className="rounded-[4px] overflow-hidden border border-border bg-black w-full"
-        style={{ minHeight: 200, maxHeight: 280 }}
+        style={{ minHeight: 240 }}
       />
 
       {status === 'starting' && (
