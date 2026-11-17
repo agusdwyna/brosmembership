@@ -11,7 +11,7 @@ export function CardShowcase({ frontImage, backImage, side, memberName }: CardSh
   return (
     <div className="card-stage">
       <div className={`card-flip ${side === 'BACK' ? 'is-back' : ''}`}>
-        <div className={`card-face ${side === 'FRONT' ? 'is-front' : 'is-back'}`}>
+        <div className="card-face card-face-front">
           {frontImage ? (
             <img src={frontImage} alt={`${alt} — sisi depan`} />
           ) : (
@@ -20,7 +20,7 @@ export function CardShowcase({ frontImage, backImage, side, memberName }: CardSh
           <span className="card-shine" aria-hidden />
         </div>
 
-        <div className={`card-face ${side === 'BACK' ? 'is-front' : 'is-back'}`}>
+        <div className="card-face card-face-back">
           {backImage ? (
             <img src={backImage} alt={`${alt} — sisi belakang`} />
           ) : (

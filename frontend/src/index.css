@@ -108,7 +108,10 @@ p {
     0 2px 6px rgba(58, 63, 82, 0.06);
 }
 
-.card-face.is-back {
+/* The back face is always turned away; the container's 180° flip is what brings
+   it to the front. Rotating the face AND the container cancelled out and left
+   the front image visible on both sides. */
+.card-face-back {
   transform: rotateY(180deg);
 }
 

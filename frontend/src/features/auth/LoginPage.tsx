@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertCircle, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from './api';
 import { loginSchema } from '@/features/members/validation';
@@ -94,6 +94,16 @@ export function LoginPage() {
             </Button>
           </form>
         </div>
+
+        {/* Public entry point for members: check whether a membership is still
+            active and download the digital card, without an operator login. */}
+        <Link
+          to="/cek"
+          className="mt-4 flex items-center justify-center gap-2 rounded-[4px] border border-border bg-surface px-4 py-3 text-[13px] font-medium text-secondary transition-colors hover:border-brand/30 hover:text-brand"
+        >
+          <ShieldCheck className="w-4 h-4" aria-hidden />
+          Cek keaktifan member
+        </Link>
       </div>
     </div>
   );
