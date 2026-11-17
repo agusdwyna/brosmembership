@@ -1,7 +1,7 @@
 /**
  * Cards can carry two kinds of QR payload:
  * - older prints: the raw `qrHash` token (64 hex)
- * - newer prints: the public URL `<origin>/c/<token>`, so a phone camera opens
+ * - newer prints: the public URL `<origin>/cek/<token>`, so a phone camera opens
  *   the digital card while the dashboard scanner still resolves the same member
  *
  * Both must land on the same value before any lookup. NIK and member numbers
@@ -12,7 +12,9 @@ export function extractCardToken(raw: string): string {
 
   // Match the token segment of a public card URL, with an optional trailing
   // slash / query / fragment.
-  const match = value.match(/\/c\/([a-f0-9]{64})(?:[/?#].*)?$/i);
+  // `/cek` is the current route; `/c` was the earlier one and still appears on
+  // links shared before the rename, so both must resolve.
+  const match = value.match(/\/(?:cek|c)\/([a-f0-9]{64})(?:[/?#].*)?$/i);
   if (match) return match[1];
 
   // Any other URL-shaped value: take the last path segment when it looks like a

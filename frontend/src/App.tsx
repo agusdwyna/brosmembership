@@ -98,10 +98,10 @@ export function App() {
       <Toaster />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        {/* Public digital card: `/c` looks up by NIK, `/c/:token` opens a shared
-            link or a QR scanned with a phone camera. No auth, no layout. */}
-        <Route path="/c" element={<PublicCardPage />} />
-        <Route path="/c/:token" element={<PublicCardPage />} />
+        {/* Public digital card: `/cek` looks up by NIK, `/cek/:token` opens a
+            shared link or a QR scanned with a phone camera. No auth, no layout. */}
+        <Route path="/cek" element={<PublicCardPage />} />
+        <Route path="/cek/:token" element={<PublicCardPage />} />
         <Route
           path="/"
           element={

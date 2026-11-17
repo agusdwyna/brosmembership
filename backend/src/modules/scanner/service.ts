@@ -275,7 +275,7 @@ export class ScannerService {
   }
 
   private async findMember(rawToken: string) {
-    // Newer cards encode the public URL (`<origin>/c/<token>`) so a phone
+    // Newer cards encode the public URL (`<origin>/cek/<token>`) so a phone
     // camera opens the digital card. The dashboard must keep accepting both
     // that URL and the older raw token / member number / NIK.
     const token = extractCardToken(rawToken);

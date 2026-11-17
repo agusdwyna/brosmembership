@@ -68,8 +68,8 @@ function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/c" element={<PublicCardPage />} />
-        <Route path="/c/:token" element={<PublicCardPage />} />
+        <Route path="/cek" element={<PublicCardPage />} />
+        <Route path="/cek/:token" element={<PublicCardPage />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -83,7 +83,7 @@ describe('PublicCardPage', () => {
   it('opens the card directly from a shared token', async () => {
     (publicCardApi.getByToken as any).mockResolvedValue({ data: { data: response } });
 
-    renderAt(`/c/${TOKEN}`);
+    renderAt(`/cek/${TOKEN}`);
 
     expect(await screen.findByText('Budi Santoso')).toBeInTheDocument();
     expect(screen.getByText('Gold Membership')).toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('PublicCardPage', () => {
   });
 
   it('shows the NIK form when there is no token', async () => {
-    renderAt('/c');
+    renderAt('/cek');
 
     expect(screen.getByLabelText(/Nomor Induk Kependudukan/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Lihat Kartu/i })).toBeInTheDocument();
@@ -102,7 +102,7 @@ describe('PublicCardPage', () => {
     (publicCardApi.lookupByNik as any).mockResolvedValue({ data: { data: response } });
     const user = userEvent.setup();
 
-    renderAt('/c');
+    renderAt('/cek');
     await user.type(screen.getByLabelText(/Nomor Induk Kependudukan/i), '3201234567890123');
     await user.click(screen.getByRole('button', { name: /Lihat Kartu/i }));
 
@@ -113,7 +113,7 @@ describe('PublicCardPage', () => {
   it('renders a generic not-found state for an unknown token', async () => {
     (publicCardApi.getByToken as any).mockRejectedValue({ response: { status: 404 } });
 
-    renderAt(`/c/${TOKEN}`);
+    renderAt(`/cek/${TOKEN}`);
 
     expect(await screen.findByText('Kartu tidak ditemukan')).toBeInTheDocument();
   });
@@ -123,7 +123,7 @@ describe('PublicCardPage', () => {
       data: { data: { ...response, validity: 'SUSPENDED' } },
     });
 
-    renderAt(`/c/${TOKEN}`);
+    renderAt(`/cek/${TOKEN}`);
 
     expect(await screen.findByText('Budi Santoso')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Unduh PNG/i })).toBeDisabled();

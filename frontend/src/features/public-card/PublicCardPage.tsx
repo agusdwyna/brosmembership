@@ -5,6 +5,7 @@ import { BrandLogos } from '@/components/shared/BrandLogos';
 import { toast } from '@/components/ui/toast-store';
 import { formatDate } from '@/lib/date';
 import { downloadDataUrl } from '@/lib/download';
+import { cardPublicUrl } from '@/lib/card-url';
 import { exportCardsToPDF, renderCardToDataURL } from '@/lib/pdf-export';
 import type { MembershipCard } from '@/features/members/card-types';
 import { publicCardApi } from './api';
@@ -168,7 +169,7 @@ export function PublicCardPage() {
   }, [card]);
 
   /**
-   * Return to the empty form. On `/c` the path does not change, so the state has
+   * Return to the empty form. On `/cek` the path does not change, so the state has
    * to be cleared explicitly or the previous card would stay on screen.
    */
   const handleCheckAnother = () => {
@@ -176,7 +177,7 @@ export function PublicCardPage() {
     setError(null);
     setImages({ front: null, back: null });
     setSide('FRONT');
-    navigate('/c');
+    navigate('/cek');
   };
 
   const handleNikSubmit = useCallback(async (nik: string) => {
@@ -217,7 +218,7 @@ export function PublicCardPage() {
   };
 
   const shareUrl = useMemo(() => {
-    if (data?.member.qrHash) return `${window.location.origin}/c/${data.member.qrHash}`;
+    if (data?.member.qrHash) return cardPublicUrl(data.member.qrHash);
     return window.location.href;
   }, [data]);
 
