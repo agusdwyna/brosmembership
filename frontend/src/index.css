@@ -1,30 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
-@import "tailwindcss";
-
+@import 'tailwindcss';
 
 @theme {
   /* ─── Brand (Bali Royal Hospital maroon) ────── */
-  --color-brand: #B82230;
-  --color-brand-dark: #8E1A25;
-  --color-gold: #C9A34E;
+  --color-brand: #b82230;
+  --color-brand-dark: #8e1a25;
+  --color-gold: #c9a34e;
 
   /* ─── Neutral ───────────────────────────────── */
-  --color-bg: #F8F9FB;
-  --color-surface: #FFFFFF;
-  --color-border: #EDF1F2;
-  --color-border-strong: #D9DFE2;
-  --color-foreground: #3A3F52;
-  --color-secondary: #53627C;
-  --color-muted: #8DA2B5;
+  --color-bg: #f8f9fb;
+  --color-surface: #ffffff;
+  --color-border: #edf1f2;
+  --color-border-strong: #d9dfe2;
+  --color-foreground: #3a3f52;
+  --color-secondary: #53627c;
+  --color-muted: #8da2b5;
 
   /* ─── Semantic ──────────────────────────────── */
-  --color-success: #2F7D5A;
-  --color-warning: #B7791F;
-  --color-danger: #B82230;
-  --color-info: #4C718C;
+  --color-success: #2f7d5a;
+  --color-warning: #b7791f;
+  --color-danger: #b82230;
+  --color-info: #4c718c;
 
   /* ─── Font ──────────────────────────────────── */
-  --font-sans: "Roboto", system-ui, sans-serif;
+  --font-sans: 'Roboto', system-ui, sans-serif;
 }
 
 *,
@@ -69,6 +68,129 @@ h3 {
 
 p {
   margin: 0;
+}
+
+/* ─── Public digital card showcase ─────────────────────── */
+/* Minimal stage: the card rests on a soft shadow and floats a few pixels. The
+   only motion is that float and an occasional low-opacity glint. */
+
+.card-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 28px 0 44px;
+  perspective: 1000px;
+}
+
+.card-flip {
+  position: relative;
+  width: min(420px, 86vw);
+  aspect-ratio: 400 / 250;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: card-float 7s ease-in-out infinite;
+}
+
+.card-flip.is-back {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  box-shadow:
+    0 14px 34px -16px rgba(58, 63, 82, 0.28),
+    0 2px 6px rgba(58, 63, 82, 0.06);
+}
+
+.card-face.is-back {
+  transform: rotateY(180deg);
+}
+
+.card-face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.card-placeholder {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+/* Low-opacity glint: reads as paper catching light, not a spotlight. */
+.card-shine {
+  position: absolute;
+  inset: -60%;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 58%
+  );
+  transform: translateX(-120%);
+  animation: card-shine 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.card-shadow {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -16px;
+  height: 22px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(58, 63, 82, 0.16), transparent 72%);
+  filter: blur(6px);
+}
+
+@keyframes card-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -6px;
+  }
+}
+
+@keyframes card-shine {
+  0%,
+  62% {
+    transform: translateX(-120%);
+  }
+  88%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-flip,
+  .card-shine {
+    animation: none !important;
+  }
+  .card-flip {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-stage {
+    padding: 18px 0 32px;
+  }
 }
 
 ::-webkit-scrollbar {

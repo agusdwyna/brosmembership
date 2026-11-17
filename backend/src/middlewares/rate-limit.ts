@@ -15,6 +15,32 @@ export const globalLimiter = rateLimit({
 });
 
 /**
+ * Public card link (QR / shared URL). The token is unguessable, so this only
+ * needs to stop a flood.
+ */
+export const publicTokenLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak permintaan. Coba lagi sebentar lagi.' },
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
+});
+
+/**
+ * Public lookup by NIK. A 16-digit NIK is sequential enough to be enumerated,
+ * so this is the primary defence and is kept much tighter than the token route.
+ */
+export const publicNikLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak percobaan. Coba lagi sebentar lagi.' },
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
+});
+
+/**
  * Tight limiter for login: throttles credential brute-force per IP + email.
  * Keying by the submitted email too means one attacker rotating IPs still
  * can't hammer a single account for free.

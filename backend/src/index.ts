@@ -24,6 +24,7 @@ import { activityLogRoutes } from './modules/activity-log/routes';
 import { settingsRoutes } from './modules/settings/routes';
 import { userRoutes } from './modules/users/routes';
 import { roleRoutes } from './modules/roles/routes';
+import { publicRoutes } from './modules/public/routes';
 import { authMiddleware } from './middlewares/auth';
 import { globalLimiter } from './middlewares/rate-limit';
 
@@ -101,6 +102,10 @@ app.get('/health', (_req, res) => {
 // ─── Public Routes ──────────────────────────────────────
 
 app.use(`${env.API_PREFIX}/auth`, authRoutes);
+
+// Digital membership card: reachable with a shared QR/link or just a NIK, so a
+// member can open their card before anyone hands it to them.
+app.use(`${env.API_PREFIX}/public`, publicRoutes);
 
 // ─── Protected Routes ───────────────────────────────────
 

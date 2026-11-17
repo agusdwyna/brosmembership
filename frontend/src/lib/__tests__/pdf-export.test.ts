@@ -45,6 +45,10 @@ function fakeContext() {
     textAlign: '',
     fillText: vi.fn(),
     drawImage: vi.fn(),
+    fillRect: vi.fn(),
+    // The renderer measures text to wrap/auto-fit; a fixed per-character width
+    // keeps these assertions about coordinates, not font metrics.
+    measureText: vi.fn((text: string) => ({ width: text.length * 8 })),
     getImageData: vi.fn().mockReturnValue({ data: new Uint8ClampedArray(0) }),
   } as unknown as CanvasRenderingContext2D & {
     fillText: ReturnType<typeof vi.fn>;

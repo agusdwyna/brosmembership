@@ -17,6 +17,7 @@ import { membershipsApi } from '@/features/memberships/api';
 import { addDays } from '@/lib/date';
 import { CardPreview } from './components/CardPreview';
 import { printCard } from '@/lib/pdf-export';
+import { cardPublicUrl } from '@/lib/card-url';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -38,6 +39,7 @@ import {
   Clock,
   Pencil,
   Printer,
+  Link2,
   AlertCircle,
 } from 'lucide-react';
 import { formatDate, formatDateTime, toDateInputValue } from '@/lib/date';
@@ -362,6 +364,24 @@ export function MemberDetailPage() {
       setDatesError(getErrorMessage(err, 'Gagal mengubah tanggal membership'));
     } finally {
       setDatesLoading(false);
+    }
+  };
+
+  /**
+   * The same link the QR carries. Handing it to a member lets them open their
+   * digital card before the printed card reaches them.
+   */
+  const handleCopyCardLink = async () => {
+    if (!member.qrHash) {
+      toast.error('Member ini belum punya token kartu');
+      return;
+    }
+    const url = cardPublicUrl(member.qrHash);
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link kartu disalin');
+    } catch {
+      window.prompt('Salin link kartu:', url);
     }
   };
 
@@ -738,15 +758,19 @@ export function MemberDetailPage() {
                         side={cardSide}
                       />
                     </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="w-full"
-                      onClick={handlePrintCard}
-                      loading={printing}
-                    >
-                      <Printer className="w-3 h-3" /> Cetak Kartu
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={handlePrintCard}
+                        loading={printing}
+                      >
+                        <Printer className="w-3 h-3" /> Cetak Kartu
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={handleCopyCardLink}>
+                        <Link2 className="w-3 h-3" /> Salin Link
+                      </Button>
+                    </div>
                   </>
                 )}
 

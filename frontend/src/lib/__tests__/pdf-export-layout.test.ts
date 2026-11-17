@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // A fake jsPDF that records what the layout code asks it to draw. Vitest hoists
 // vi.mock above imports, so the class and its instance list must be hoisted too.
@@ -14,6 +14,17 @@ const { instances, FakePdf } = vi.hoisted(() => {
     addImage = vi.fn((img: string, _format: string, x: number, y: number, w: number, h: number) => {
       this.images.push({ img, x, y, w, h });
     });
+    // Page furniture — the layout test only cares about card placement, so
+    // these just need to exist.
+    setFont = vi.fn();
+    setFontSize = vi.fn();
+    setTextColor = vi.fn();
+    setDrawColor = vi.fn();
+    setFillColor = vi.fn();
+    setLineWidth = vi.fn();
+    text = vi.fn();
+    line = vi.fn();
+    rect = vi.fn();
     constructor() {
       instances.push(this);
     }
@@ -39,6 +50,8 @@ function stubCanvas() {
     textAlign: '',
     fillText: vi.fn(),
     drawImage: vi.fn(),
+    fillRect: vi.fn(),
+    measureText: (text: string) => ({ width: text.length * 8 }),
     getImageData: () => ({ data: new Uint8ClampedArray(0) }),
   };
   const original = document.createElement.bind(document);
@@ -86,6 +99,14 @@ const card = (n: number) => ({
 
 beforeEach(() => {
   instances.length = 0;
+  // The header embeds the brand logos via fetch. jsdom has no served assets, so
+  // reject it; the header then degrades to text-only and the image list stays
+  // card faces only, which is what these assertions are about.
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('no assets in test')));
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('exportCardsToPDF layout', () => {

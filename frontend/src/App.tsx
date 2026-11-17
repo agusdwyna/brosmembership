@@ -6,6 +6,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Toaster } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { PublicCardPage } from '@/features/public-card/PublicCardPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { MembersPage } from '@/features/members/MembersPage';
 import { MemberDetailPage } from '@/features/members/MemberDetailPage';
@@ -97,6 +98,10 @@ export function App() {
       <Toaster />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        {/* Public digital card: `/c` looks up by NIK, `/c/:token` opens a shared
+            link or a QR scanned with a phone camera. No auth, no layout. */}
+        <Route path="/c" element={<PublicCardPage />} />
+        <Route path="/c/:token" element={<PublicCardPage />} />
         <Route
           path="/"
           element={

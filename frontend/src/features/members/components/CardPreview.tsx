@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { generateQRDataURL } from '@/lib/qr';
+import { cardPublicUrl } from '@/lib/card-url';
 import { toast } from '@/components/ui/toast-store';
 import { formatDate } from '@/lib/date';
 import type { MembershipCard } from '../card-types';
@@ -21,7 +22,7 @@ export function CardPreview({ card, side = 'FRONT' }: CardPreviewProps) {
 
   useEffect(() => {
     if (card.membership.member.qrHash) {
-      generateQRDataURL(card.membership.member.qrHash, 200)
+      generateQRDataURL(cardPublicUrl(card.membership.member.qrHash), 200)
         .then(setQrUrl)
         .catch(() => toast.error('Gagal membuat QR code'));
     }
@@ -49,7 +50,9 @@ export function CardPreview({ card, side = 'FRONT' }: CardPreviewProps) {
   return (
     <div
       className="relative border border-border rounded-[4px] overflow-hidden"
-      style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
+      // Same opaque base as the renderer, so a template without artwork shows a
+      // white card face instead of the page behind it.
+      style={{ width: CARD_WIDTH, height: CARD_HEIGHT, backgroundColor: '#FFFFFF' }}
     >
       {/* Background image */}
       {bgImage && (
@@ -73,6 +76,11 @@ export function CardPreview({ card, side = 'FRONT' }: CardPreviewProps) {
             fontSize: el.fontSize ? `${el.fontSize}px` : '12px',
             fontWeight: el.fontWeight || 'normal',
             textAlign: (el.alignment as any) || 'left',
+            // Match the export renderer: 1.2 line height, wrap inside the box,
+            // and never spill past the element bounds.
+            lineHeight: 1.2,
+            overflow: 'hidden',
+            wordBreak: 'break-word',
             // Unset = automatic: inherit the surrounding ink color.
             color: el.color || undefined,
             display: 'flex',

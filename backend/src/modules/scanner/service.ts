@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { hashNik, maskNik } from '../../lib/nik';
+import { extractCardToken } from '../../lib/card-token';
 import type { VerifyInput } from './schema';
 
 interface MemberRef {
@@ -273,7 +274,12 @@ export class ScannerService {
     };
   }
 
-  private async findMember(token: string) {
+  private async findMember(rawToken: string) {
+    // Newer cards encode the public URL (`<origin>/c/<token>`) so a phone
+    // camera opens the digital card. The dashboard must keep accepting both
+    // that URL and the older raw token / member number / NIK.
+    const token = extractCardToken(rawToken);
+
     // Every lookup uses findFirst rather than findUnique because deleted
     // members must not resolve. Their unique columns are also tombstoned on
     // delete, but this keeps the rule explicit and survives a manual restore.
