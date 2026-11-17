@@ -404,7 +404,7 @@ export function PublicCardPage() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex w-full max-w-5xl flex-col items-center justify-between gap-2 px-5 py-5 text-[11px] leading-5 text-muted sm:flex-row sm:px-8">
-          <span>2023 © IT/SIMRS · Bali Royal Hospital</span>
+          <span>2026 © IT/SIMRS · Bali Royal Hospital</span>
           <span>Jl. Tantular No. 6 Renon, Denpasar – Bali</span>
         </div>
       </footer>

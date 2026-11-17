@@ -512,7 +512,7 @@ function drawPageFrame(pdf: jsPDF, page: number, total: number): void {
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(7);
   pdf.setTextColor(...COLOR_MUTED);
-  pdf.text('2023 © IT/SIMRS · Bali Royal Hospital', CONTENT_LEFT, footerY);
+  pdf.text('2026 © IT/SIMRS · Bali Royal Hospital', CONTENT_LEFT, footerY);
   pdf.text(`Halaman ${page} / ${total}`, CONTENT_RIGHT, footerY, { align: 'right' });
 }
 
@@ -679,7 +679,7 @@ export async function printCard(card: MembershipCard): Promise<void> {
       row('JENIS MEMBERSHIP', card.membership.membershipType.name) +
       row('BERLAKU SAMPAI', formatDate(card.membership.endDate)) +
       `</section>` +
-      `<footer><span>2023 © IT/SIMRS · Bali Royal Hospital</span><span>Halaman 1 / 1</span></footer>` +
+      `<footer><span>2026 © IT/SIMRS · Bali Royal Hospital</span><span>Halaman 1 / 1</span></footer>` +
       `</div></body></html>`,
   );
   win.document.close();

@@ -41,7 +41,7 @@ dipilih". Dilarang popup; pesan selalu menempel pada elemennya.
 | Entitas kedua | RSIA Bali Royal (`logo-rsia.png`) |
 | Tagline | `E-Recruitment` → untuk membership: **`Membership`** |
 | Situs | https://www.baliroyalhospital.co.id |
-| Copyright footer | `2023 © IT/SIMRS` |
+| Copyright footer | `2026 © IT/SIMRS` |
 
 **Alamat & kontak resmi** (dipakai di footer, jangan dikarang):
 
